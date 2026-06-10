@@ -28,13 +28,13 @@
 
 | 영역 | 기술 |
 |---|---|
-| **프론트엔드** | React 19.2, Vite 7, wouter (라우팅), Tailwind CSS 4 + shadcn/ui (40+ Radix 컴포넌트), Framer Motion, React Hook Form + Zod, Recharts (지원자 통계), @dnd-kit/core (조직도 빌더 드래그) |
+| **프론트엔드** | React 19.2, Vite 7, wouter (라우팅), Tailwind CSS 4 + shadcn/ui (40+ Radix 컴포넌트), Framer Motion, React Hook Form + Zod, Recharts (지원자 통계) |
 | **상태 관리** | tRPC + React Query (서버 상태), React Context (테마) |
 | **백엔드** | Express 4, tRPC 11, Drizzle ORM, **Resend API (우선) + Nodemailer (SMTP 폴백)**, jose (JWT) |
 | **인증** | Kakao OAuth 2.0 + HttpOnly 쿠키 + JWT (1년 단일; Access/Refresh 분리 예정) + 학교 이메일 인증 (6자리 코드, SHA-256 해시) |
 | **데이터베이스** | PostgreSQL (21개 테이블) |
 | **이미지 저장소** | Cloudinary |
-| **테스트** | Vitest (50 케이스 — 권한 회귀·검증 토큰·rate limit·조직도 privacy 게이팅 등) |
+| **테스트** | Vitest (22 케이스 — 권한 회귀·검증 토큰·rate limit 등) |
 | **패키지 매니저** | pnpm 10.4.1 |
 | **빌드 도구** | esbuild (서버), Vite (클라이언트), cross-env (Windows 호환) |
 | **배포** | Render.com |
@@ -50,7 +50,7 @@ hufs-global-community/
 │   │   ├── App.tsx              # 라우터 정의 + OnboardingGuard + Disabled 차단
 │   │   ├── pages/               # 14개 페이지 (아래 "프론트엔드 페이지" 표 참조)
 │   │   ├── pages/onboarding/    # Email / Verify / Profile (3단계 가입)
-│   │   ├── components/          # Logo, Navbar, PostCard, MessageModal, ReportDialog, orgchart/ (조직도 빌더·트리·다이어그램·캔버스) 등
+│   │   ├── components/          # Logo, Navbar, PostCard, MessageModal, ReportDialog 등
 │   │   ├── components/ui/       # shadcn/ui 컴포넌트 (40+)
 │   │   ├── lib/                 # tRPC 클라이언트, 유틸
 │   │   ├── contexts/            # ThemeContext (다크모드)
@@ -142,13 +142,12 @@ hufs-global-community/
 
 ### posts / comments / likes / bookmarks
 - 게시글·댓글·반응 테이블
-- `posts` 신규 컬럼: `formSchema` (JSONB, 커스텀 폼), `hasInterview` (면접 단계), `groupId` (그룹 연동), **`orgChart` (JSONB, 모집 직책 조직도), `orgChartSettings` (JSONB, 조직도 레이아웃·간격)**
+- `posts` 신규 컬럼: `formSchema` (JSONB, 커스텀 폼), `hasInterview` (면접 단계), `groupId` (그룹 연동)
 
 ### applications — 모집 신청
 - `(postId, applicantId)` UNIQUE 로 중복 신청 차단
 - status: `대기중` / `1차합격` / `수락` / `거절` (4단계)
 - `answers` (JSONB, 폼 응답), `rejectReason` (text, 거절 사유)
-- **조직도 컬럼**: `hopedPositionId`/`assignedPositionId` (지원자 희망 직책 / 작성자 확정 배치), `publicContactConsent`/`publicContact` (공개 조직도 연락처 공개 동의 + 내용)
 
 ### messages — 1:1 쪽지
 - senderId, receiverId, postId(optional), content, isRead
@@ -200,7 +199,7 @@ groups ─┬─ 1:N → groupRoles, groupMembers, groupAnnouncements, groupChat
 * **`profile`**: 프로필 정보 관리 및 상세 조회
 * **`post`**: 모집글 CRUD, 추천, 키워드 자동완성, 좋아요/북마크 토글
 * **`comment`**: 모집글 댓글 및 대댓글 관리
-* **`application`**: 모집글 지원서 제출, 합격/거절 처리, 조직도 직책 배치 및 연락처 공개 제어
+* **`application`**: 모집글 지원서 제출, 합격/거절 처리
 * **`calendar`**: 개인일정 관리 및 마이 캘린더 통합 데이터 추출
 * **`block`**: 유저 차단 및 차단 해제
 * **`report`**: 모집글/댓글/사용자/쪽지 신고 접수
@@ -234,8 +233,8 @@ groups ─┬─ 1:N → groupRoles, groupMembers, groupAnnouncements, groupChat
 * **동작 원리**: 백엔드 라우터 객체의 TypeScript 타입 정의(`export type AppRouter = typeof appRouter`)를 프론트엔드가 참조(Import)하여, API 파이프라인의 입출력 인자 타입을 컴파일 타임에 100% 동기화하고 에러를 빌드 시점에 잡아냅니다.
 
 ### 5. PostgreSQL JSONB 기반 비정형 데이터 모델링
-모집 단위별로 유동적인 **'동적 질문 폼'**과 **'모집 직책 조직도'**를 다루기 위해 하이브리드 데이터베이스 설계를 사용했습니다.
-* **JSONB의 강점**: 질문지 스펙(`posts.formSchema`)과 조직도 캔버스 설정(`posts.orgChart`)을 직렬화하여 JSONB 필드에 직접 저장함으로써, DDL 마이그레이션 변경 없이 기민하게 변경 요구사항에 대처합니다.
+모집 단위별로 유동적인 **'동적 질문 폼'**을 다루기 위해 하이브리드 데이터베이스 설계를 사용했습니다.
+* **JSONB의 강점**: 질문지 스펙(`posts.formSchema`)을 직렬화하여 JSONB 필드에 직접 저장함으로써, DDL 마이그레이션 변경 없이 기민하게 변경 요구사항에 대처합니다.
 * **조인 없는 쿼리**: 지원서 응답(`applications.answers`)을 문항 ID-답변 Value 해시 맵 구조의 JSONB 단일 필드로 기록하여 복잡한 `JOIN` 연산 및 자식 테이블 락(Lock) 경합 없이 단일 쿼리로 고속 조회를 보장합니다.
 
 ### 6. 일정 겹침 방지 배치 알고리즘 (시간 복잡도 분석)
@@ -256,11 +255,11 @@ groups ─┬─ 1:N → groupRoles, groupMembers, groupAnnouncements, groupChat
 
 ### 1. NULL 값 UNIQUE 제약조건 충돌 극복 (조건부 부분 인덱스)
 * **문제 상황**: 1인 1계정 원칙을 위해 학번(`studentId`)과 이메일(`verifiedEmail`)에 UNIQUE 제약조건이 필요했으나, 카카오 로그인 직후 가입을 완료하기 전인 가입 대기(`pending`) 중인 유저들은 이 필드들이 임시 `NULL` 상태를 가집니다. 표준 UNIQUE 인덱스는 다수의 NULL 또한 중복으로 간주하여 충돌로 신규 가입을 마비시키는 장애가 있었습니다.
-* **해결 방법**: PostgreSQL의 **조건부 부분 인덱스(Conditional Partial Index)**를 활용해 오직 학교 인증을 완료하여 가입 처리가 승격된 회원(`status = 'verified'`)에 한해서만 고유 제약조건 인덱스가 빌드되고 작동하도록 Drizzle schema에 아래와 같이 명세하여 무결성을 극복했습니다.
+* **해결 방법**: PostgreSQL의 **조건부 부분 인덱스(Conditional Partial Index)**를 활용해 오직 학번 및 이메일 값이 존재하는 경우(`IS NOT NULL`)에만 고유 제약조건 인덱스가 빌드되고 작동하도록 Drizzle schema에 아래와 같이 명세하여 무결성을 극복했습니다.
   ```typescript
-  uniqueIndex("unique_verified_student_id")
+  uniqueIndex("users_studentId_unique")
     .on(table.studentId)
-    .where(eq(table.status, "verified"))
+    .where(sql`"studentId" IS NOT NULL`)
   ```
 
 ### 2. 이메일 전송 인프라 이중화 (SMTP 폴백 + Resend API)
@@ -289,10 +288,10 @@ groups ─┬─ 1:N → groupRoles, groupMembers, groupAnnouncements, groupChat
 |---|---|---|
 | `/` | Home | 4슬라이드 자동 캐러셀 배너(외대 정보 중심) + 카테고리별 최신글 + 개인화 추천 |
 | `/board` | Board | 24개/페이지, 카테고리 · 검색 · 정렬 · 상태 필터 |
-| `/post/new` | PostForm | 게시글 작성 — 커스텀 폼 빌더 + **조직도 빌더**(색·간격·드래그·자유배치), verified 필요 |
-| `/post/:id` | PostDetail | 신청, 댓글, 쪽지, 차단·신고, 연동 그룹 일정, **공개 조직도 다이어그램** |
+| `/post/new` | PostForm | 게시글 작성 — 커스텀 폼 빌더, verified 필요 |
+| `/post/:id` | PostDetail | 신청, 댓글, 쪽지, 차단·신고, 연동 그룹 일정 |
 | `/post/:id/edit` | PostForm | 게시글 수정 |
-| `/post/:id/manage` | **PostManage** | 지원자 통계(Recharts) + 1차합격·수락·거절 + **조직도 배치 보드** |
+| `/post/:id/manage` | **PostManage** | 지원자 통계(Recharts) + 1차합격·수락·거절 |
 | `/profile` | Profile | 학과 · 학년 · 소개 · 키워드, 가입 정보 읽기 전용 카드 |
 | `/user/:id` | **UserProfile** | 타 사용자 프로필 + 메시지 보내기 |
 | `/mypage` | MyPage | 내 글 / 신청 / 북마크 탭, 학교 인증 배지, 학과·학번 표시 |
@@ -350,9 +349,6 @@ groups ─┬─ 1:N → groupRoles, groupMembers, groupAnnouncements, groupChat
 
 ### 14. 검증 (3중 방어)
 * **구현원리**: 1차로 브라우저에서 `React Hook Form`과 `Zod` 스키마 결합을 통해 폼 유효성 오류를 차단하고, 2차로 tRPC 백엔드 라우터 진입점에 `Zod` 파라미터 유효성 검사 미들웨어를 두었으며, 3차로 데이터베이스의 `UNIQUE`, `NOT NULL`, `CHECK` 제약조건으로 최종 정합성을 강제하는 다계층 검증을 수행합니다.
-
-### 15. 모집 조직도 (org-chart)
-* **구현원리**: 모집 직책의 트리 계층과 색상, 캔버스 좌표 등을 JSONB로 변환해 `posts.orgChart`에 보관합니다. `@dnd-kit/core`로 트리 구조 드래그 재배치 및 좌표를 갱신하고 노드 간 관계는 SVG 베지에 곡선으로 점선 연결을 렌더링합니다. 합격자 연락처 노출은 공개 동의한 유저에 한해 서버 사이드 게이팅을 거치며 동시성 락을 가동합니다.
 
 ---
 
@@ -558,7 +554,7 @@ pnpm run dev          # 개발 서버(프론트+백) 실행
 pnpm run db:push       # = drizzle-kit generate && drizzle-kit migrate
 ```
 
-> 수동 SQL 참고: 마이그레이션은 **0004 에서 동결**되어 있어, 이후 스키마 변경은 `_archive/*_REFERENCE.sql` 로 수동 적용합니다 (drizzle-kit generate 사용 시 메타 불일치로 깨짐). 인증 재설계 시안 [`0005_auth_redesign_REFERENCE.sql`](drizzle/_archive/0005_auth_redesign_REFERENCE.sql), **조직도 컬럼 [`0006_org_chart_columns_REFERENCE.sql`](drizzle/_archive/0006_org_chart_columns_REFERENCE.sql)** 참조.
+> 수동 SQL 참고: 마이그레이션은 **0004 에서 동결**되어 있어, 이후 스키마 변경은 `_archive/*_REFERENCE.sql` 로 수동 적용합니다 (drizzle-kit generate 사용 시 메타 불일치로 깨짐). 인증 재설계 시안 [`0005_auth_redesign_REFERENCE.sql`](drizzle/_archive/0005_auth_redesign_REFERENCE.sql) 참조.
 
 ### 시드 (데이터)
 학과 마스터 같은 정적 데이터 적용:

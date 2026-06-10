@@ -87,31 +87,7 @@ export default function MyPage() {
 
   const utils = trpc.useUtils();
 
-  const cancelApplicationMutation = trpc.application.cancel.useMutation({
-    onMutate: () => {
-      const toastId = toast.loading("신청을 취소하는 중...");
-      return { toastId };
-    },
-    onSuccess: (_data, _variables, context) => {
-      toast.dismiss(context?.toastId);
-      toast.success("신청이 취소되었습니다.");
-      utils.application.listByUser.invalidate();
-    },
-    onError: (err, _variables, context) => {
-      toast.dismiss(context?.toastId);
-      toast.error(err.message || "신청 취소에 실패했습니다.");
-    },
-  });
 
-  // 조직도 연락처 공개 동의 설정/철회
-  const setPublicConsentMutation =
-    trpc.application.setPublicConsent.useMutation({
-      onSuccess: () => {
-        toast.success("조직도 공개 설정이 변경되었습니다.");
-        utils.application.listByUser.invalidate();
-      },
-      onError: err => toast.error(err.message || "설정 변경에 실패했습니다."),
-    });
 
   const toggleBookmarkMutation = trpc.post.toggleBookmark.useMutation({
     onMutate: () => {
@@ -459,29 +435,7 @@ export default function MyPage() {
                                 {statusConfig.label}
                               </span>
 
-                              {application.status === "대기중" && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  disabled={cancelApplicationMutation.isPending}
-                                  onClick={e => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
 
-                                    if (
-                                      window.confirm("신청을 취소하시겠습니까?")
-                                    ) {
-                                      cancelApplicationMutation.mutate({
-                                        applicationId: application.id,
-                                      });
-                                    }
-                                  }}
-                                >
-                                  {cancelApplicationMutation.isPending
-                                    ? "취소 중..."
-                                    : "신청 취소"}
-                                </Button>
-                              )}
                             </div>
                             <h3 className="font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">
                               {post.title}
@@ -510,50 +464,7 @@ export default function MyPage() {
                               ).toLocaleDateString("ko-KR")}{" "}
                               신청
                             </p>
-                            {Array.isArray((post as any).orgChart) &&
-                              (post as any).orgChart.length > 0 &&
-                              application.status !== "거절" && (
-                                <button
-                                  type="button"
-                                  disabled={setPublicConsentMutation.isPending}
-                                  onClick={e => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    const on =
-                                      (application as any)
-                                        .publicContactConsent === 1;
-                                    if (on) {
-                                      setPublicConsentMutation.mutate({
-                                        applicationId: application.id,
-                                        consent: 0,
-                                      });
-                                    } else {
-                                      const c = window.prompt(
-                                        "조직도에 공개할 연락처를 입력하세요 (예: 카카오톡 ID, 이메일)",
-                                        (application as any).publicContact || ""
-                                      );
-                                      if (c && c.trim()) {
-                                        setPublicConsentMutation.mutate({
-                                          applicationId: application.id,
-                                          consent: 1,
-                                          publicContact: c.trim(),
-                                        });
-                                      }
-                                    }
-                                  }}
-                                  className={`mt-2 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
-                                    (application as any)
-                                      .publicContactConsent === 1
-                                      ? "bg-primary/10 text-primary border-primary/20"
-                                      : "bg-muted text-muted-foreground border-border hover:bg-muted/70"
-                                  }`}
-                                >
-                                  {(application as any).publicContactConsent ===
-                                  1
-                                    ? `조직도 연락처 공개 ON · ${(application as any).publicContact}`
-                                    : "조직도 연락처 공개 OFF"}
-                                </button>
-                              )}
+
                           </div>
                           <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0 group-hover:text-primary transition-colors mt-1" />
                         </div>

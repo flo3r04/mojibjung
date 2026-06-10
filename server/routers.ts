@@ -8,7 +8,6 @@ import {
   getApplicationsByPost,
   getApplicationsByUser,
   getApplicationById,
-  deleteApplication,
   getPostById,
   getPostsByAuthor,
   getProfileByUserId,
