@@ -1,0 +1,1 @@
+ALTER TABLE "posts" ADD COLUMN "meetingType" varchar(50) DEFAULT '미정' NOT NULL;

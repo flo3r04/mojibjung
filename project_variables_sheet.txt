@@ -1,0 +1,131 @@
+=========================================
+HUFS Global Campus Community 프로젝트 변수 정의서
+=========================================
+
+이 문서는 프로젝트의 핵심 변수들(환경 변수, DB 스키마 컬럼, 시스템 상수, API 라우터 변수)을 정리한 문서입니다.
+아래의 각 표 구역(텍스트)을 전체 복사(Ctrl+A -> Ctrl+C)하여 엑셀(Excel)이나 구글 스프레드시트에 붙여넣기(Ctrl+V)하시면 자동으로 표의 각 셀에 나누어 들어갑니다 (탭 구분자 방식).
+
+-----------------------------------------
+1. 환경 변수 (Environment Variables - .env)
+-----------------------------------------
+변수명	데이터 타입	사용처	설명 / 기본값
+DATABASE_URL	String (URI)	server/db.ts, server/_core/env.ts	PostgreSQL 데이터베이스 연결 주소
+JWT_SECRET	String	server/_core/env.ts, server/_core/verificationToken.ts	Access/Refresh JWT 서명 및 검증용 비밀키
+VITE_KAKAO_CLIENT_ID	String	client/ (OAuth 로그인)	카카오 로그인 API 연동을 위한 클라이언트 ID
+OWNER_OPEN_ID	String	server/db.ts	최상위 관리자(Admin) 권한을 자동으로 부여할 카카오 고유 OpenID
+CORS_ALLOWED_ORIGINS	String	server/_core/env.ts	API 서버 접근을 허용할 클라이언트 도메인 목록 (쉼표 , 로 구분)
+SMTP_HOST	String	server/email.ts	학교 이메일 인증코드 발송용 SMTP 서버 호스트 (기본: smtp.gmail.com)
+SMTP_PORT	Number	server/email.ts	SMTP 서버 포트 번호 (기본: 587)
+SMTP_USER	String	server/email.ts	SMTP 발송용 인증 이메일 계정
+SMTP_PASS	String	server/email.ts	SMTP 발송용 비밀번호 (또는 앱 비밀번호)
+SMTP_FROM	String	server/email.ts	메일 발송 시 표시될 발신자 정보 (기본: 모집중 <email@hufs.ac.kr>)
+SMTP_SECURE	Boolean	server/email.ts	보안 연결(SSL/TLS) 사용 여부 (true / false)
+RESEND_API_KEY	String	server/_core/env.ts	이메일 발송 외부 솔루션 Resend API 연동 키 (SMTP 대용)
+CLOUDINARY_CLOUD_NAME	String	server/storage.ts	Cloudinary 이미지 저장소 클라우드명
+CLOUDINARY_API_KEY	String	server/storage.ts	Cloudinary API Key
+CLOUDINARY_API_SECRET	String	server/storage.ts	Cloudinary API Secret Key
+
+-----------------------------------------
+2. 데이터베이스 테이블 및 필드 변수 (Database Schema)
+-----------------------------------------
+
+① 사용자 마스터 테이블 (users)
+필드(변수)명	데이터 타입	사용처	설명 및 제약조건
+id	Serial (Integer)	PK, 전역 관계 식별자	자동 증가하는 고유 회원 번호 (Primary Key)
+openId	Varchar(64)	OAuth 로그인, 사용자 조회	카카오에서 발급받는 고유 식별값 (Unique)
+realName	Varchar(50)	본인인증, 프로필	정회원 인증 시 입력하는 실명
+studentId	Varchar(10)	학적 확인	학번 9~10자리 (Unique)
+email	Varchar(320)	알림, 계정 정보	카카오 계정 연동 이메일
+verifiedEmail	Varchar(320)	학교 이메일 인증	인증 완료된 학교 메일 (@hufs.ac.kr) (Unique)
+admissionYear	Smallint	프로필, 검색 필터	입학년도 (예: 2024)
+departmentId	Integer	departments FK	소속 학과 고유 ID
+role	Varchar(20)	인가 권한 체크	회원 권한 (user / admin)
+status	Varchar(20)	가입 프로세스 상태 제어	회원 상태 (pending / verified / disabled)
+avatarUrl	Text	UI, 마이페이지	프로필 이미지 URL
+loginMethod	Varchar(64)	인증 모듈	로그인 제공처 (예: kakao)
+createdAt	Timestamp	회원 정보 조회	가입일시 (default: now())
+updatedAt	Timestamp	상태 갱신	회원정보 최종 수정일시
+lastSignedIn	Timestamp	세션 체크	최종 로그인 일시
+
+② 사용자 프로필 테이블 (profiles)
+필드(변수)명	데이터 타입	사용처	설명 및 제약조건
+id	Serial (Integer)	PK	고유 프로필 ID
+userId	Integer	users.id FK	프로필 소유자의 회원 ID (1:1 고유 매핑, Unique)
+grade	Varchar(20)	마이페이지, 모집 신청	학년 정보 (1 / 2 / 3 / 4 / 대학원)
+bio	Text	타인 정보 보기, 이력서	한 줄 자기소개 문구
+keywords	Text (JSON)	추천 알고리즘	매칭 키워드 태그 목록
+department	Varchar(100)	없음	@deprecated (이후 users.departmentId로 대체됨)
+
+③ 학과 마스터 테이블 (departments)
+필드(변수)명	데이터 타입	사용처	설명 및 제약조건
+id	Serial (Integer)	PK	고유 학과 ID
+name	Varchar(100)	회원가입, 프로필	학과명 (Unique)
+college	Varchar(100)	학과 분류	단과대학 분류명 (예: 통번역대학)
+campus	Varchar(20)	학과 분류	캠퍼스명 (기본값: 글로벌)
+
+④ 모집 게시글 테이블 (posts)
+필드(변수)명	데이터 타입	사용처	설명 및 제약조건
+id	Serial (Integer)	PK	고유 게시글 ID
+authorId	Integer	users.id FK	작성자(모집 대표자) 회원 ID
+groupId	Integer	groups.id FK	이 게시글과 연동된 소속 그룹(동아리/학회 등) ID
+category	Varchar(50)	메인보드, 필터	모집글 카테고리 (동아리 / 학회 / 스터디)
+title	Varchar(200)	게시판 리스트	모집 제목
+content	Text	게시글 상세 페이지	모집 내용 본문
+capacity	Integer	대시보드, 신청 현황	총 모집 정원 (기본값: 10)
+deadline	Timestamp	마감 임박 정렬	모집 마감 시각
+keywords	Text (JSON)	추천, 키워드 매칭	게시글 관련 검색 키워드 태그
+formSchema	Jsonb	신청서 생성, 작성 폼	맞춤형 추가 질문 설정 템플릿 정보
+orgChart	Jsonb	조직도 렌더링, 역할 부여	모집 직책 조직도 (PostOrgChart 배열)
+orgChartSettings	Jsonb	조직도 레이아웃	조직도 배치 모드 (auto / free) 및 간격 설정
+imageUrl	Text	썸네일 이미지	게시글 대표 이미지 URL
+hasInterview	Integer	신청서 화면	면접 단계 존재 여부 (0: 없음, 1: 있음)
+meetingType	Varchar(50) | 필터 및 정보 출력	모임 형태 (온라인 / 오프라인 / 온오프라인 / 미정)
+status	Varchar(20)	게시글 필터링	모집 상태 (모집중 / 마감)
+viewCount	Integer	정렬 (조회순)	누적 조회수 (기본값: 0)
+
+⑤ 모집 신청 테이블 (applications)
+필드(변수)명	데이터 타입	사용처	설명 및 제약조건
+id	Serial (Integer)	PK	고유 신청서 ID
+postId	Integer	posts.id FK	신청 대상 모집글 ID (Unique 복합 키)
+applicantId	Integer	users.id FK	지원자 고유 회원 ID (Unique 복합 키)
+introduction	Text	신청자 관리 페이지	한 줄 소개 및 자기소개글
+answers	Jsonb	신청서 상세 보기	작성자가 커스텀한 질문의 작성 답변 목록
+hopedPositionId	Varchar(30)	조직도 소프트참조	지원자가 선택한 1지망 희망 직책 ID
+assignedPositionId	Varchar(30)	조직도 소프트참조	합격 시 배정 완료된 직책 ID
+publicContactConsent	Integer	조직도 보기	연락처 공개 여부 동의 (0: 비동의, 1: 동의)
+publicContact	Varchar(100)	합격자 연락망	동의 시 공개할 카카오톡/전화번호 등 연락 수단
+status	Varchar(20)	지원서 상태 관리	지원 상태 (대기중 / 1차합격 / 수락 / 거절)
+rejectReason	Text	지원서 결과 확인	거절(탈락) 사유 내용
+interviewDetails	Text	면접 진행 대시보드	면접 일정 및 안내 상세 사항
+
+-----------------------------------------
+3. 주요 공유 상수 (Shared Constants - shared/const.ts)
+-----------------------------------------
+상수(변수)명	데이터 타입	사용처	설명
+COOKIE_NAME	String	server/, client/	사용자 세션 인증 세션 쿠키 이름 (app_session_id)
+ONE_YEAR_MS	Number	쿠키 만료 옵션	1년 기간의 밀리초 상수
+AXIOS_TIMEOUT_MS	Number	client/ API 요청	HTTP 비동기 통신 타임아웃 제한 시간 (30,000ms)
+UNAUTHED_ERR_MSG	String	라우터 에러	미인증 유저 요청 거부 메세지 및 에러 코드
+NOT_ADMIN_ERR_MSG	String	라우터 에러	관리자 페이지 접근 권한 부족 에러 코드
+VERIFICATION_REQUIRED_ERR_MSG	String	라우터 에러	학교 인증 미통과 유저 거부 에러 코드
+ACCOUNT_DISABLED_ERR_MSG	String	라우터 에러	이용 정지(제재) 유저 차단 에러 코드
+
+-----------------------------------------
+4. 핵심 tRPC API 라우터 변수 (AppRouter API Routes)
+-----------------------------------------
+라우터 그룹	API 엔드포인트	입출력 (Input/Output) 변수명	사용처 및 용도
+auth	me	Output: User object (Nullable)	로그인된 사용자 자신의 세션 정보 반환
+auth	logout	Output: { success: boolean }	쿠키 삭제 및 사용자 로그아웃 처리
+auth	requestEmailVerification	Input: email (학교 이메일) Output: { expiresIn, email }	인증코드 6자 생성 및 학교 이메일 발송 처리
+auth	verifyEmailCode	Input: email, code (6자리 번호) Output: { success, verificationToken }	사용자가 제출한 인증 코드를 해시값과 비교 검증
+auth	completeRegistration	Input: verificationToken, realName, studentId, admissionYear, departmentId	학생 인증서 발급 정보를 검증하고 최종 가입 승인
+profile	get	Output: Profile object (유저 정보 조인)	로그인된 사용자 본인의 프로필 데이터 로드
+profile	upsert	Input: departmentId, grade, bio, keywords, avatarUrl	프로필 작성 및 갱신 기능 (기존 존재 여부에 따라 처리)
+post	list	Input: category, keyword, search, status, sort, limit, offset, sortBy	조건별(동아리/학회/스터디, 최신순/마감순) 모집글 목록 검색
+post	get	Input: id (게시글 고유 ID) Output: Post 및 관련 통계	특정 모집 게시글 상세 페이지 데이터(조회수, 북마크, 좋아요) 조회
+post	create	Input: category, title, content, capacity, deadline, keywords, meetingType, imageUrl, formSchema, orgChart, orgChartSettings	새 모집 게시글 데이터 삽입 생성
+post	update	Input: id, data (수정 필드 객체)	게시글 작성자가 모집글을 수정 (조직도 변경 시 배치정보 연계 정리)
+comment	list	Input: postId (게시글 고유 ID)	특정 모집글 아래 작성된 전체 댓글 목록 로드
+comment	create	Input: postId, content, parentId (대댓글인 경우)	신규 댓글 등록 처리
+group	create	Input: name, accessKey	새로운 단체/그룹 마스터 생성 (동아리, 학회 전용 공간)
+group	joinGroupWithKey	Input: accessKey (입장 키)	입장 코드로 그룹 멤버 가입 및 역할 배정

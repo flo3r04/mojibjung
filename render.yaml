@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: hufs-global-community
+    env: node
+    previewsEnabled: true
+    previewsPullRequestButtonEnabled: true
+    buildCommand: npm install -g pnpm && pnpm install && pnpm run db:push && pnpm run build
+    startCommand: pnpm run start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hufs-db
+          property: connectionString
+      - key: VITE_KAKAO_CLIENT_ID
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+
+databases:
+  - name: hufs-db
+    plan: free
