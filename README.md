@@ -286,7 +286,7 @@ groups ─┬─ 1:N → groupRoles, groupMembers, groupAnnouncements, groupChat
 
 | 경로 | 페이지 | 핵심 기능 |
 |---|---|---|
-| `/` | Home | 4슬라이드 자동 캐러셀 배너(외대 정보 중심) + 카테고리별 최신글 + 개인화 추천 |
+| `/` | Home | 4슬라이드 자동 캐러셀 배너(외대 정보 및 실시간 학사일정 D-Day 자동 연동) + 카테고리별 최신글 + 개인화 추천 |
 | `/board` | Board | 24개/페이지, 카테고리 · 검색 · 정렬 · 상태 필터 |
 | `/post/new` | PostForm | 게시글 작성 — 커스텀 폼 빌더, verified 필요 |
 | `/post/:id` | PostDetail | 신청, 댓글, 쪽지, 차단·신고, 연동 그룹 일정 |
@@ -563,6 +563,9 @@ pnpm run db:push       # = drizzle-kit generate && drizzle-kit migrate
 pnpm run db:seed       # drizzle/seeds/*.sql 을 알파벳 순서로 적용 (idempotent)
 ```
 
+> [!NOTE]
+> `pnpm run db:seed` 실행 시 학과 마스터 데이터(`001_departments.sql`)와 2026학년도 학사일정 및 공휴일 데이터(`002_calendar_events.sql`)가 순서대로 자동으로 데이터베이스에 주입됩니다.
+
 ---
 
 ## 테스트
@@ -590,7 +593,7 @@ pnpm run test       # Vitest 기반 통합 테스트 실행
 
 ### 데이터베이스
 - [ ] `pnpm run db:push` 실행 — `drizzle/schema.ts` 기반 DDL 동기화
-- [ ] `pnpm run db:seed` 실행 — 학과 마스터 시드 (회원가입 시 학과 선택에 필수)
+- [ ] `pnpm run db:seed` 실행 — 학과 마스터 및 학사일정/공휴일 시드 (회원가입 및 캘린더/배너 D-Day 연동에 필수)
 
 ### 코드 상태 (완료)
 - [x] `@hufs.ac.kr` 이메일 도메인 강제 검증
