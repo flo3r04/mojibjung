@@ -43,7 +43,17 @@ async function main() {
       const fullPath = path.join(SEEDS_DIR, file);
       const content = fs.readFileSync(fullPath, "utf8");
       console.log(`[seed] applying ${file} ...`);
-      await sql.unsafe(content);
+      
+      // postgres-js의 sql.unsafe는 단일 호출 시 첫 번째 쿼리문만 실행하고 나머지는 무시하므로,
+      // 세미콜론(;) 단위로 쪼개어 각각 실행합니다.
+      const statements = content
+        .split(";")
+        .map((stmt) => stmt.trim())
+        .filter((stmt) => stmt.length > 0);
+
+      for (const stmt of statements) {
+        await sql.unsafe(stmt);
+      }
       console.log(`[seed] ✓ ${file}`);
     }
     console.log(`[seed] done — ${files.length} file(s) applied`);
