@@ -21,6 +21,7 @@ import {
   Clock, 
   Megaphone 
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const POPULAR_KEYWORDS = [
   "프론트엔드", "백엔드", "모바일", "기획/디자인", "알고리즘", "어학", "취업/면접", "기타"
@@ -37,6 +38,41 @@ const getDDay = (deadline: string | null | Date) => {
   if (diffDays === 0) return "D-Day";
   if (diffDays > 0) return `D-${diffDays}`;
   return "모집 종료";
+};
+
+const getAcademicDDay = (
+  events: any[],
+  keyword: string,
+  fallbackLabel: string
+) => {
+  const event = events.find(
+    (e) => e.category === "academic" && e.title.includes(keyword)
+  );
+  if (!event) return { title: fallbackLabel, dday: "대기", badgeBg: "bg-slate-500" };
+
+  const start = new Date(event.startDate);
+  const end = new Date(event.endDate);
+  const today = new Date();
+  
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const startMs = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
+  const endMs = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
+  
+  const title = event.title.replace(/^\[학사\]\s*/, "");
+
+  if (todayStart >= startMs && todayStart <= endMs) {
+    return { title, dday: "진행중", badgeBg: "bg-emerald-500" };
+  }
+  if (todayStart < startMs) {
+    const diffTime = startMs - todayStart;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return {
+      title,
+      dday: diffDays === 0 ? "D-Day" : `D-${diffDays}`,
+      badgeBg: keyword === "기말시험" ? "bg-rose-500" : "bg-indigo-500",
+    };
+  }
+  return { title, dday: "종료", badgeBg: "bg-slate-400" };
 };
 
 export default function Home() {
@@ -111,6 +147,9 @@ export default function Home() {
     { query: kwQuery },
     { enabled: kwQuery.length > 0 }
   );
+
+  // 학사일정 조회 (비로그인 사용자도 학사 D-Day 확인이 가능하도록)
+  const { data: calendarEvents = [] } = trpc.calendar.list.useQuery();
 
   let displayKeywords = isAuthenticated ? [] : POPULAR_KEYWORDS;
   if (isAuthenticated && profile?.profile?.keywords) {
@@ -302,18 +341,34 @@ export default function Home() {
                     한국외대 주요 학사일정 D-Day
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10">
-                      <div className="text-[11px] font-bold text-white">1학기 기말시험 기간</div>
-                      <span className="text-[9px] font-black bg-rose-500 text-white px-2 py-0.5 rounded">D-17</span>
-                    </div>
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10">
-                      <div className="text-[11px] font-bold text-white">여름방학 및 계절학기 개강</div>
-                      <span className="text-[9px] font-black bg-indigo-500 text-white px-2 py-0.5 rounded">D-24</span>
-                    </div>
-                    <div className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10">
-                      <div className="text-[11px] font-bold text-white">1학기 성적 공시 및 정정</div>
-                      <span className="text-[9px] font-black bg-slate-500 text-white px-2 py-0.5 rounded">대기</span>
-                    </div>
+                    {(() => {
+                      const examInfo = getAcademicDDay(calendarEvents, "기말시험", "1학기 기말시험 기간");
+                      const vacationInfo = getAcademicDDay(calendarEvents, "계절학기", "여름방학 및 계절학기 개강");
+                      const gradeInfo = getAcademicDDay(calendarEvents, "성적 공시", "1학기 성적 공시 및 정정");
+
+                      return (
+                        <>
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10">
+                            <div className="text-[11px] font-bold text-white">{examInfo.title}</div>
+                            <span className={cn("text-[9px] font-black text-white px-2 py-0.5 rounded", examInfo.badgeBg)}>
+                              {examInfo.dday}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10">
+                            <div className="text-[11px] font-bold text-white">{vacationInfo.title}</div>
+                            <span className={cn("text-[9px] font-black text-white px-2 py-0.5 rounded", vacationInfo.badgeBg)}>
+                              {vacationInfo.dday}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between p-2 rounded-lg bg-white/5 border border-white/10">
+                            <div className="text-[11px] font-bold text-white">{gradeInfo.title}</div>
+                            <span className={cn("text-[9px] font-black text-white px-2 py-0.5 rounded", gradeInfo.badgeBg)}>
+                              {gradeInfo.dday}
+                            </span>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
