@@ -178,7 +178,19 @@ export async function getUserByOpenId(openId: string) {
     .from(users)
     .where(eq(users.openId, openId))
     .limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  if (result.length === 0) return undefined;
+
+  const user = result[0];
+  // legacy user normalization: if verified but lacks realName or verifiedEmail, demote to pending.
+  if (user.status === "verified" && (!user.realName || !user.verifiedEmail)) {
+    await db
+      .update(users)
+      .set({ status: "pending" })
+      .where(eq(users.id, user.id));
+    user.status = "pending";
+  }
+
+  return user;
 }
 
 // * 모든 사용자 목록을 최신순으로 가져오는 함수 (관리자용)
