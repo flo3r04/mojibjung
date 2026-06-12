@@ -21,7 +21,7 @@ export default function Layout({ children, className = "" }: LayoutProps) {
               </span>
             </div>
             <p className="text-xs text-muted-foreground">
-              한국외국어대학교 글로벌 캠퍼스 교내 커뮤니티 플랫폼
+              한국외국어대학교 교내 커뮤니티 플랫폼
             </p>
           </div>
         </div>
