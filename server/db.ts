@@ -84,7 +84,8 @@ export async function getDb() {
       // [보안 인증용 emailVerifications 및 신규 고도화 캘린더 기능 테이블 강제 자동 싱크]
       // Render 환경 등에서 마이그레이션 툴이 꼬였을 때를 대비한 수동 DDL 동기화 레이어
       (async () => {
-        // 1. emailVerifications 테이블 생성
+        try {
+          // 1. emailVerifications 테이블 생성
         try {
           await _db!.execute(sql`
             CREATE TABLE IF NOT EXISTS "emailVerifications" (
