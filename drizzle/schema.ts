@@ -529,3 +529,54 @@ export const groupArchives = pgTable("group_archives", {
 
 export type GroupArchive = typeof groupArchives.$inferSelect;
 export type InsertGroupArchive = typeof groupArchives.$inferInsert;
+
+// ============================================================================
+// 그룹 내 하위 스터디/소모임 (Group Sub-Studies)
+// ============================================================================
+export const groupStudies = pgTable("group_studies", {
+  id: serial("id").primaryKey(),
+  groupId: integer("groupId").notNull(),
+  leaderId: integer("leaderId").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  description: varchar("description", { length: 500 }).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("group_studies_groupId_idx").on(table.groupId)
+]);
+
+export type GroupStudy = typeof groupStudies.$inferSelect;
+export type InsertGroupStudy = typeof groupStudies.$inferInsert;
+
+// ============================================================================
+// 하위 스터디 멤버 (Sub-Study Members)
+// ============================================================================
+export const groupStudyMembers = pgTable("group_study_members", {
+  id: serial("id").primaryKey(),
+  studyId: integer("studyId").notNull(),
+  userId: integer("userId").notNull(),
+  joinedAt: timestamp("joinedAt").defaultNow().notNull(),
+}, (table) => [
+  index("group_study_members_studyId_idx").on(table.studyId)
+]);
+
+export type GroupStudyMember = typeof groupStudyMembers.$inferSelect;
+export type InsertGroupStudyMember = typeof groupStudyMembers.$inferInsert;
+
+// ============================================================================
+// 하위 스터디 회의록 (Sub-Study Meeting Minutes)
+// ============================================================================
+export const groupStudyMinutes = pgTable("group_study_minutes", {
+  id: serial("id").primaryKey(),
+  studyId: integer("studyId").notNull(),
+  authorId: integer("authorId").notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  meetingDate: timestamp("meetingDate").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => [
+  index("group_study_minutes_studyId_idx").on(table.studyId)
+]);
+
+export type GroupStudyMinute = typeof groupStudyMinutes.$inferSelect;
+export type InsertGroupStudyMinute = typeof groupStudyMinutes.$inferInsert;

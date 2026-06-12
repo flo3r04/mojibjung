@@ -74,6 +74,12 @@ import {
   InsertGroupFile,
   groupArchives,
   InsertGroupArchive,
+  groupStudies,
+  InsertGroupStudy,
+  groupStudyMembers,
+  InsertGroupStudyMember,
+  groupStudyMinutes,
+  InsertGroupStudyMinute,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -247,6 +253,54 @@ export async function getDb() {
           console.log("[Database] group 아카이브 관련 DDL 싱크 완료");
         } catch (archiveError) {
           console.error("[Database] group 아카이브 관련 DDL 싱크 실패:", archiveError);
+        }
+
+        // 5-e. group_studies, group_study_members, group_study_minutes 테이블 생성 및 인덱스 추가
+        try {
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "group_studies" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "groupId" integer NOT NULL,
+              "leaderId" integer NOT NULL,
+              "name" varchar(100) NOT NULL,
+              "description" varchar(500) NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+          await _db!.execute(sql`
+            CREATE INDEX IF NOT EXISTS "group_studies_groupId_idx" ON "group_studies" ("groupId");
+          `);
+
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "group_study_members" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "studyId" integer NOT NULL,
+              "userId" integer NOT NULL,
+              "joinedAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+          await _db!.execute(sql`
+            CREATE INDEX IF NOT EXISTS "group_study_members_studyId_idx" ON "group_study_members" ("studyId");
+          `);
+
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "group_study_minutes" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "studyId" integer NOT NULL,
+              "authorId" integer NOT NULL,
+              "title" varchar(200) NOT NULL,
+              "content" text NOT NULL,
+              "meetingDate" timestamp NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL,
+              "updatedAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+          await _db!.execute(sql`
+            CREATE INDEX IF NOT EXISTS "group_study_minutes_studyId_idx" ON "group_study_minutes" ("studyId");
+          `);
+          console.log("[Database] 하위 스터디 관련 테이블 DDL 싱크 완료");
+        } catch (studyErr) {
+          console.error("[Database] 하위 스터디 관련 테이블 DDL 싱크 실패:", studyErr);
         }
 
         // 6. 학사일정 및 공휴일 자동 시딩
@@ -2618,4 +2672,149 @@ export async function getGroupArchiveDetail(id: number) {
     .where(eq(groupArchives.id, id))
     .limit(1);
   return rows[0] || null;
+}
+
+// ============================================================================
+// [신규] 하위 스터디 / 소모임 관련 DB 함수
+// ============================================================================
+
+export async function createGroupStudy(data: { groupId: number; leaderId: number; name: string; description: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+  const result = await db.insert(groupStudies).values(data).returning();
+  return result[0];
+}
+
+export async function getGroupStudies(groupId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: groupStudies.id,
+      groupId: groupStudies.groupId,
+      leaderId: groupStudies.leaderId,
+      name: groupStudies.name,
+      description: groupStudies.description,
+      createdAt: groupStudies.createdAt,
+      leaderName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
+      leaderAvatar: users.avatarUrl,
+    })
+    .from(groupStudies)
+    .innerJoin(users, eq(groupStudies.leaderId, users.id))
+    .where(eq(groupStudies.groupId, groupId))
+    .orderBy(desc(groupStudies.createdAt));
+}
+
+export async function getGroupStudyMembers(studyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: groupStudyMembers.id,
+      studyId: groupStudyMembers.studyId,
+      userId: groupStudyMembers.userId,
+      joinedAt: groupStudyMembers.joinedAt,
+      name: users.name,
+      realName: users.realName,
+      studentId: users.studentId,
+      avatarUrl: users.avatarUrl,
+    })
+    .from(groupStudyMembers)
+    .innerJoin(users, eq(groupStudyMembers.userId, users.id))
+    .where(eq(groupStudyMembers.studyId, studyId))
+    .orderBy(desc(groupStudyMembers.joinedAt));
+}
+
+export async function setGroupStudyMembers(studyId: number, userIds: number[]) {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+
+  return db.transaction(async (tx) => {
+    // 1. 기존 멤버 일괄 삭제
+    await tx.delete(groupStudyMembers).where(eq(groupStudyMembers.studyId, studyId));
+
+    // 2. 새 멤버 일괄 등록
+    if (userIds.length > 0) {
+      const valuesToInsert = userIds.map((userId) => ({
+        studyId,
+        userId,
+      }));
+      await tx.insert(groupStudyMembers).values(valuesToInsert);
+    }
+  });
+}
+
+// ============================================================================
+// [신규] 하위 스터디 회의록 관련 DB 함수
+// ============================================================================
+
+export async function getGroupStudyMinutes(studyId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: groupStudyMinutes.id,
+      studyId: groupStudyMinutes.studyId,
+      authorId: groupStudyMinutes.authorId,
+      title: groupStudyMinutes.title,
+      meetingDate: groupStudyMinutes.meetingDate,
+      createdAt: groupStudyMinutes.createdAt,
+      updatedAt: groupStudyMinutes.updatedAt,
+      authorName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
+    })
+    .from(groupStudyMinutes)
+    .innerJoin(users, eq(groupStudyMinutes.authorId, users.id))
+    .where(eq(groupStudyMinutes.studyId, studyId))
+    .orderBy(desc(groupStudyMinutes.meetingDate));
+}
+
+export async function getGroupStudyMinuteDetail(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select({
+      id: groupStudyMinutes.id,
+      studyId: groupStudyMinutes.studyId,
+      authorId: groupStudyMinutes.authorId,
+      title: groupStudyMinutes.title,
+      content: groupStudyMinutes.content,
+      meetingDate: groupStudyMinutes.meetingDate,
+      createdAt: groupStudyMinutes.createdAt,
+      updatedAt: groupStudyMinutes.updatedAt,
+      authorName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
+    })
+    .from(groupStudyMinutes)
+    .innerJoin(users, eq(groupStudyMinutes.authorId, users.id))
+    .where(eq(groupStudyMinutes.id, id))
+    .limit(1);
+  return rows[0] || null;
+}
+
+export async function createGroupStudyMinute(data: { studyId: number; authorId: number; title: string; content: string; meetingDate: Date }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+  const result = await db.insert(groupStudyMinutes).values(data).returning();
+  return result[0];
+}
+
+export async function updateGroupStudyMinute(id: number, data: { title: string; content: string; meetingDate: Date }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+  const result = await db
+    .update(groupStudyMinutes)
+    .set({
+      title: data.title,
+      content: data.content,
+      meetingDate: data.meetingDate,
+      updatedAt: new Date(),
+    })
+    .where(eq(groupStudyMinutes.id, id))
+    .returning();
+  return result[0];
+}
+
+export async function deleteGroupStudyMinute(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+  await db.delete(groupStudyMinutes).where(eq(groupStudyMinutes.id, id));
 }

@@ -81,6 +81,15 @@ import {
   archiveGroup,
   getGroupArchives,
   getGroupArchiveDetail,
+  createGroupStudy,
+  getGroupStudies,
+  getGroupStudyMembers,
+  setGroupStudyMembers,
+  getGroupStudyMinutes,
+  getGroupStudyMinuteDetail,
+  createGroupStudyMinute,
+  updateGroupStudyMinute,
+  deleteGroupStudyMinute,
 } from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -2006,6 +2015,267 @@ export const appRouter = router({
           });
         }
         return archive;
+      }),
+
+    // 하위 스터디 생성
+    createSubStudy: protectedVerifiedProcedure
+      .input(
+        z.object({
+          groupId: z.number(),
+          leaderId: z.number(),
+          name: z.string().min(1, "스터디 이름을 입력해주세요.").max(100),
+          description: z.string().max(500),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+        if (!perm.isLeader && ctx.user.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "그룹 리더만 하위 스터디를 생성할 수 있습니다.",
+          });
+        }
+
+        const study = await createGroupStudy({
+          groupId: input.groupId,
+          leaderId: input.leaderId,
+          name: input.name,
+          description: input.description,
+        });
+
+        // 스터디장을 스터디 멤버에 자동 포함
+        await setGroupStudyMembers(study.id, [input.leaderId]);
+
+        // 알림 전송
+        try {
+          const group = await getGroupById(input.groupId);
+          const groupName = group?.name || "소속 그룹";
+          await createNotification({
+            userId: input.leaderId,
+            type: "group_event",
+            title: `'${groupName}' 하위 스터디장 임명`,
+            content: `'${input.name}' 스터디의 스터디장으로 지정되었습니다.`,
+            link: "/groups",
+          });
+        } catch (notifErr) {
+          console.error("[SubStudyNotifError] 알림 전송 실패:", notifErr);
+        }
+
+        return study;
+      }),
+
+    // 하위 스터디 목록 조회
+    listSubStudies: protectedVerifiedProcedure
+      .input(z.object({ groupId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+        if (!perm.isLeader && !perm.roleName && ctx.user.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "그룹 멤버만 소그룹 목록을 조회할 수 있습니다.",
+          });
+        }
+        return getGroupStudies(input.groupId);
+      }),
+
+    // 하위 스터디 멤버 조회
+    listSubStudyMembers: protectedVerifiedProcedure
+      .input(z.object({ studyId: z.number(), groupId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+        if (!perm.isLeader && !perm.roleName && ctx.user.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "그룹 멤버만 스터디원 목록을 조회할 수 있습니다.",
+          });
+        }
+        return getGroupStudyMembers(input.studyId);
+      }),
+
+    // 하위 스터디 멤버 수정
+    updateSubStudyMembers: protectedVerifiedProcedure
+      .input(
+        z.object({
+          studyId: z.number(),
+          groupId: z.number(),
+          userIds: z.array(z.number()),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { groupStudies } = await import("../drizzle/schema");
+        const rows = await db.select().from(groupStudies).where(eq(groupStudies.id, input.studyId)).limit(1);
+        if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "스터디를 찾을 수 없습니다." });
+
+        const study = rows[0];
+        const isStudyLeader = study.leaderId === ctx.user.id;
+        const isParentLeader = perm.isLeader || ctx.user.role === "admin";
+
+        if (!isStudyLeader && !isParentLeader) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "스터디장 또는 그룹 리더만 스터디원을 지정할 수 있습니다.",
+          });
+        }
+
+        // 스터디장은 자동 포함되도록 구성
+        const targetUserIds = Array.from(new Set([study.leaderId, ...input.userIds]));
+        await setGroupStudyMembers(input.studyId, targetUserIds);
+        return { success: true };
+      }),
+
+    // 회의록 목록 조회
+    listSubStudyMinutes: protectedVerifiedProcedure
+      .input(z.object({ studyId: z.number(), groupId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+        const studyMembers = await getGroupStudyMembers(input.studyId);
+        const isMember = studyMembers.some((m) => m.userId === ctx.user.id);
+        const isParentLeader = perm.isLeader || ctx.user.role === "admin";
+
+        if (!isMember && !isParentLeader) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "해당 스터디의 구성원만 회의록 목록을 조회할 수 있습니다.",
+          });
+        }
+
+        return getGroupStudyMinutes(input.studyId);
+      }),
+
+    // 회의록 상세 조회
+    getSubStudyMinuteDetail: protectedVerifiedProcedure
+      .input(z.object({ id: z.number(), groupId: z.number(), studyId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+        const studyMembers = await getGroupStudyMembers(input.studyId);
+        const isMember = studyMembers.some((m) => m.userId === ctx.user.id);
+        const isParentLeader = perm.isLeader || ctx.user.role === "admin";
+
+        if (!isMember && !isParentLeader) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "해당 스터디의 구성원만 회의록 내용을 열람할 수 있습니다.",
+          });
+        }
+
+        const minute = await getGroupStudyMinuteDetail(input.id);
+        if (!minute) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "회의록을 찾을 수 없습니다.",
+          });
+        }
+        return minute;
+      }),
+
+    // 회의록 작성
+    createSubStudyMinute: protectedVerifiedProcedure
+      .input(
+        z.object({
+          studyId: z.number(),
+          groupId: z.number(),
+          title: z.string().min(1, "제목을 입력해주세요.").max(200),
+          content: z.string().min(1, "내용을 입력해주세요."),
+          meetingDate: z.coerce.date(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+        const studyMembers = await getGroupStudyMembers(input.studyId);
+        const isMember = studyMembers.some((m) => m.userId === ctx.user.id);
+        const isParentLeader = perm.isLeader || ctx.user.role === "admin";
+
+        if (!isMember && !isParentLeader) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "스터디 구성원만 회의록을 작성할 수 있습니다.",
+          });
+        }
+
+        return createGroupStudyMinute({
+          studyId: input.studyId,
+          authorId: ctx.user.id,
+          title: input.title,
+          content: input.content,
+          meetingDate: input.meetingDate,
+        });
+      }),
+
+    // 회의록 수정
+    updateSubStudyMinute: protectedVerifiedProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          studyId: z.number(),
+          groupId: z.number(),
+          title: z.string().min(1, "제목을 입력해주세요.").max(200),
+          content: z.string().min(1, "내용을 입력해주세요."),
+          meetingDate: z.coerce.date(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { groupStudyMinutes, groupStudies } = await import("../drizzle/schema");
+        
+        const rows = await db.select().from(groupStudyMinutes).where(eq(groupStudyMinutes.id, input.id)).limit(1);
+        if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "회의록을 찾을 수 없습니다." });
+
+        const minute = rows[0];
+        const studyRows = await db.select().from(groupStudies).where(eq(groupStudies.id, input.studyId)).limit(1);
+        const study = studyRows[0];
+
+        const isAuthor = minute.authorId === ctx.user.id;
+        const isStudyLeader = study && study.leaderId === ctx.user.id;
+        const isParentLeader = perm.isLeader || ctx.user.role === "admin";
+
+        if (!isAuthor && !isStudyLeader && !isParentLeader) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "작성자 또는 스터디장만 회의록을 수정할 수 있습니다.",
+          });
+        }
+
+        return updateGroupStudyMinute(input.id, {
+          title: input.title,
+          content: input.content,
+          meetingDate: input.meetingDate,
+        });
+      }),
+
+    // 회의록 삭제
+    deleteSubStudyMinute: protectedVerifiedProcedure
+      .input(z.object({ id: z.number(), studyId: z.number(), groupId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { groupStudyMinutes, groupStudies } = await import("../drizzle/schema");
+        
+        const rows = await db.select().from(groupStudyMinutes).where(eq(groupStudyMinutes.id, input.id)).limit(1);
+        if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "회의록을 찾을 수 없습니다." });
+
+        const minute = rows[0];
+        const studyRows = await db.select().from(groupStudies).where(eq(groupStudies.id, input.studyId)).limit(1);
+        const study = studyRows[0];
+
+        const isAuthor = minute.authorId === ctx.user.id;
+        const isStudyLeader = study && study.leaderId === ctx.user.id;
+        const isParentLeader = perm.isLeader || ctx.user.role === "admin";
+
+        if (!isAuthor && !isStudyLeader && !isParentLeader) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "작성자 또는 스터디장만 회의록을 삭제할 수 있습니다.",
+          });
+        }
+
+        await deleteGroupStudyMinute(input.id);
+        return { success: true };
       }),
   }),
 

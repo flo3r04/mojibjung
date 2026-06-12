@@ -37,7 +37,10 @@ import {
   File,
   Download,
   UploadCloud,
-  Archive
+  Archive,
+  ListTodo,
+  Notebook,
+  Edit
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -47,7 +50,7 @@ export default function GroupHub() {
   const utils = trpc.useUtils();
 
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"chat" | "calendar" | "members" | "files">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "calendar" | "members" | "files" | "studies">("chat");
   const [copiedKeyGroupId, setCopiedKeyGroupId] = useState<number | null>(null);
 
   // Group join access key
@@ -455,6 +458,13 @@ export default function GroupHub() {
                       <FolderOpen className="w-4.5 h-4.5" />
                       자료실 (파일 공유)
                     </button>
+                    <button
+                      onClick={() => setActiveTab("studies")}
+                      className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${activeTab === "studies" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                    >
+                      <ListTodo className="w-4.5 h-4.5" />
+                      소모임 / 스터디
+                    </button>
                     {(selectedGroup.isLeader || user?.role === "admin") && (
                       <button
                         onClick={() => setActiveTab("members")}
@@ -829,6 +839,16 @@ export default function GroupHub() {
                     {activeTab === "files" && (
                       <div className="flex-1 p-6 overflow-y-auto bg-card">
                         <GroupFilesSection
+                          groupId={selectedGroupId ?? 0}
+                          isLeader={selectedGroup?.isLeader ?? false}
+                          user={user}
+                        />
+                      </div>
+                    )}
+
+                    {activeTab === "studies" && (
+                      <div className="flex-1 p-6 overflow-y-auto bg-card">
+                        <GroupStudiesSection
                           groupId={selectedGroupId ?? 0}
                           isLeader={selectedGroup?.isLeader ?? false}
                           user={user}
@@ -1774,6 +1794,725 @@ function GroupFilesSection({
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============================================================================
+// [신규] 하위 스터디 및 소모임 관리 섹션 컴포넌트
+// ============================================================================
+function GroupStudiesSection({
+  groupId,
+  isLeader,
+  user,
+}: {
+  groupId: number;
+  isLeader: boolean;
+  user: any;
+}) {
+  const utils = trpc.useUtils();
+  
+  const { data: studies = [], isLoading: studiesLoading } = trpc.group.listSubStudies.useQuery({ groupId });
+  const { data: parentMembers = [] } = trpc.group.listMembers.useQuery({ groupId });
+
+  const [selectedStudyId, setSelectedStudyId] = useState<number | null>(null);
+
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [newStudyName, setNewStudyName] = useState("");
+  const [newStudyDesc, setNewStudyDesc] = useState("");
+  const [newStudyLeaderId, setNewStudyLeaderId] = useState<number | null>(null);
+
+  const currentStudy = studies.find((s) => s.id === selectedStudyId);
+  const isStudyLeader = currentStudy?.leaderId === user?.id;
+  const isLeaderOrAdmin = isLeader || isStudyLeader || user?.role === "admin";
+
+  const createStudyMutation = trpc.group.createSubStudy.useMutation({
+    onSuccess: () => {
+      utils.group.listSubStudies.invalidate({ groupId });
+      setCreateModalOpen(false);
+      setNewStudyName("");
+      setNewStudyDesc("");
+      setNewStudyLeaderId(null);
+      toast.success("소모임 스터디가 개설되었습니다.");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleCreateStudySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newStudyLeaderId) {
+      toast.error("스터디장을 지정해주세요.");
+      return;
+    }
+    createStudyMutation.mutate({
+      groupId,
+      leaderId: newStudyLeaderId,
+      name: newStudyName,
+      description: newStudyDesc,
+    });
+  };
+
+  if (selectedStudyId && currentStudy) {
+    return (
+      <SubStudyWorkspace
+        groupId={groupId}
+        studyId={selectedStudyId}
+        study={currentStudy}
+        isLeader={isLeader}
+        isStudyLeader={isStudyLeader}
+        isLeaderOrAdmin={isLeaderOrAdmin}
+        user={user}
+        parentMembers={parentMembers}
+        onBack={() => {
+          setSelectedStudyId(null);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center select-none">
+        <div>
+          <h3 className="text-base font-black text-foreground flex items-center gap-2">
+            🚀 소모임 및 하위 스터디
+          </h3>
+          <p className="text-xs text-muted-foreground font-semibold mt-1">동아리 내 개설된 연구회, 스터디 그룹을 모니터링하고 가입할 수 있습니다.</p>
+        </div>
+        {(isLeader || user?.role === "admin") && (
+          <Button
+            type="button"
+            onClick={() => setCreateModalOpen(true)}
+            className="rounded-xl font-bold gap-1.5 h-9 bg-primary"
+          >
+            <Plus className="w-4 h-4" />
+            스터디 개설
+          </Button>
+        )}
+      </div>
+
+      {studiesLoading ? (
+        <div className="py-24 text-center text-xs font-bold text-muted-foreground/60 animate-pulse">
+          스터디 목록 로딩 중...
+        </div>
+      ) : studies.length === 0 ? (
+        <div className="py-20 text-center border-2 border-dashed border-border/60 rounded-2xl bg-muted/5">
+          <ListTodo className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
+          <p className="text-xs font-black text-muted-foreground">개설된 스터디가 없습니다.</p>
+          {(isLeader || user?.role === "admin") ? (
+            <p className="text-[10px] text-muted-foreground/80 mt-1">상단의 스터디 개설 버튼을 통해 스터디 그룹을 신설해보세요!</p>
+          ) : (
+            <p className="text-[10px] text-muted-foreground/80 mt-1">그룹 리더에게 하위 소모임 개설을 건의해보세요.</p>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {studies.map((s) => (
+            <div
+              key={s.id}
+              onClick={() => setSelectedStudyId(s.id)}
+              className="group border border-border/60 hover:border-primary/20 bg-card rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between"
+            >
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-primary/10 text-primary font-mono">
+                    스터디
+                  </span>
+                  <span className="text-[10px] font-bold text-muted-foreground">
+                    방장: {s.leaderName}
+                  </span>
+                </div>
+                <h4 className="font-black text-sm text-foreground group-hover:text-primary transition-colors">
+                  {s.name}
+                </h4>
+                <p className="text-[11px] leading-relaxed text-muted-foreground font-semibold line-clamp-3 mt-2 break-all">
+                  {s.description || "등록된 스터디 한 줄 소개가 없습니다."}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-border/40 pt-4 mt-5 text-[10px] font-bold text-muted-foreground">
+                <span className="text-primary group-hover:underline">워크스페이스 입장 →</span>
+                <span>{new Date(s.createdAt).toLocaleDateString("ko-KR")}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* 스터디 개설 모달창 */}
+      <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
+        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
+              <Plus className="w-5.5 h-5.5 text-primary" />
+              신규 스터디/소모임 개설
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground font-medium text-xs">
+              학회 내 소그룹을 만들고 역할을 전담할 스터디장을 임명합니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateStudySubmit} className="space-y-4 my-3 text-xs">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-black text-muted-foreground">스터디 이름</label>
+              <Input
+                value={newStudyName}
+                onChange={(e) => setNewStudyName(e.target.value)}
+                placeholder="예: 리액트 딥다이브 스터디"
+                className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-black text-muted-foreground">스터디 한 줄 소개</label>
+              <Input
+                value={newStudyDesc}
+                onChange={(e) => setNewStudyDesc(e.target.value)}
+                placeholder="어떤 주제로 스터디를 운영하나요?"
+                className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5 flex flex-col">
+              <label className="text-[11px] font-black text-muted-foreground">스터디장 임명</label>
+              <select
+                value={newStudyLeaderId ?? ""}
+                onChange={(e) => setNewStudyLeaderId(Number(e.target.value))}
+                className="w-full rounded-xl font-bold h-10 px-3 border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary text-xs"
+                required
+              >
+                <option value="">-- 스터디장 선택 --</option>
+                {parentMembers.map((m: any) => (
+                  <option key={m.userId} value={m.userId}>
+                    {m.realName ?? m.name} ({m.studentId ? `${m.studentId.substring(2,4)}학번` : "일반"})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button type="button" variant="outline" className="rounded-xl font-bold" onClick={() => setCreateModalOpen(false)}>
+                취소
+              </Button>
+              <Button type="submit" className="rounded-xl font-black shadow-md bg-primary" disabled={createStudyMutation.isPending}>
+                개설 완료
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============================================================================
+// 하위 스터디 개별 워크스페이스 컴포넌트
+// ============================================================================
+function SubStudyWorkspace({
+  groupId,
+  studyId,
+  study,
+  isLeader,
+  isStudyLeader,
+  isLeaderOrAdmin,
+  user,
+  parentMembers,
+  onBack,
+}: {
+  groupId: number;
+  studyId: number;
+  study: any;
+  isLeader: boolean;
+  isStudyLeader: boolean;
+  isLeaderOrAdmin: boolean;
+  user: any;
+  parentMembers: any[];
+  onBack: () => void;
+}) {
+  const utils = trpc.useUtils();
+  const [activeSubTab, setActiveSubTab] = useState<"minutes" | "members">("minutes");
+
+  // 스터디 멤버 조회
+  const { data: studyMembers = [], isLoading: membersLoading } = trpc.group.listSubStudyMembers.useQuery({ studyId, groupId });
+  // 회의록 조회
+  const { data: minutes = [], isLoading: minutesLoading } = trpc.group.listSubStudyMinutes.useQuery({ studyId, groupId });
+
+  const [selectedMinuteId, setSelectedMinuteId] = useState<number | null>(null);
+  const [minuteModalOpen, setMinuteModalOpen] = useState(false);
+  const [editingMinuteId, setEditingMinuteId] = useState<number | null>(null);
+  
+  // 회의록 에디터 폼
+  const [minuteTitle, setMinuteTitle] = useState("");
+  const [minuteContent, setMinuteContent] = useState("");
+  const [minuteDateStr, setMinuteDateStr] = useState(new Date().toISOString().split("T")[0]);
+
+  // 스터디 멤버 편집 모달
+  const [manageMembersModalOpen, setManageMembersModalOpen] = useState(false);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
+
+  // 회의록 상세 정보 조회
+  const { data: minuteDetail } = trpc.group.getSubStudyMinuteDetail.useQuery(
+    { id: selectedMinuteId ?? 0, groupId, studyId },
+    { enabled: !!selectedMinuteId }
+  );
+
+  // 스터디 멤버 수정 Mutation
+  const updateMembersMutation = trpc.group.updateSubStudyMembers.useMutation({
+    onSuccess: () => {
+      utils.group.listSubStudyMembers.invalidate({ studyId, groupId });
+      setManageMembersModalOpen(false);
+      toast.success("스터디원 구성원 변경이 반영되었습니다.");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  // 회의록 작성 Mutation
+  const createMinuteMutation = trpc.group.createSubStudyMinute.useMutation({
+    onSuccess: () => {
+      utils.group.listSubStudyMinutes.invalidate({ studyId, groupId });
+      setMinuteModalOpen(false);
+      toast.success("회의록이 등록되었습니다.");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  // 회의록 수정 Mutation
+  const updateMinuteMutation = trpc.group.updateSubStudyMinute.useMutation({
+    onSuccess: () => {
+      utils.group.listSubStudyMinutes.invalidate({ studyId, groupId });
+      if (selectedMinuteId === editingMinuteId) {
+        utils.group.getSubStudyMinuteDetail.invalidate({ id: selectedMinuteId, groupId, studyId });
+      }
+      setMinuteModalOpen(false);
+      toast.success("회의록이 수정되었습니다.");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  // 회의록 삭제 Mutation
+  const deleteMinuteMutation = trpc.group.deleteSubStudyMinute.useMutation({
+    onSuccess: () => {
+      utils.group.listSubStudyMinutes.invalidate({ studyId, groupId });
+      setSelectedMinuteId(null);
+      toast.success("회의록이 삭제되었습니다.");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleMinuteSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!minuteTitle.trim() || !minuteContent.trim()) {
+      toast.error("모든 내용을 기입해 주세요.");
+      return;
+    }
+    const meetingDate = new Date(minuteDateStr);
+
+    if (editingMinuteId) {
+      updateMinuteMutation.mutate({
+        id: editingMinuteId,
+        studyId,
+        groupId,
+        title: minuteTitle,
+        content: minuteContent,
+        meetingDate,
+      });
+    } else {
+      createMinuteMutation.mutate({
+        studyId,
+        groupId,
+        title: minuteTitle,
+        content: minuteContent,
+        meetingDate,
+      });
+    }
+  };
+
+  const handleOpenNewMinute = () => {
+    setEditingMinuteId(null);
+    setMinuteTitle("");
+    setMinuteContent("");
+    setMinuteDateStr(new Date().toISOString().split("T")[0]);
+    setMinuteModalOpen(true);
+  };
+
+  const handleOpenEditMinute = (min: any) => {
+    setEditingMinuteId(min.id);
+    setMinuteTitle(min.title);
+    setMinuteContent(min.content || "");
+    setMinuteDateStr(new Date(min.meetingDate).toISOString().split("T")[0]);
+    setMinuteModalOpen(true);
+  };
+
+  const handleOpenManageMembers = () => {
+    setSelectedMemberIds(studyMembers.map((m) => m.userId));
+    setManageMembersModalOpen(true);
+  };
+
+  const handleSaveMembers = () => {
+    updateMembersMutation.mutate({
+      studyId,
+      groupId,
+      userIds: selectedMemberIds,
+    });
+  };
+
+  const toggleMemberSelection = (userId: number) => {
+    if (userId === study.leaderId) return;
+
+    if (selectedMemberIds.includes(userId)) {
+      setSelectedMemberIds(selectedMemberIds.filter((id) => id !== userId));
+    } else {
+      setSelectedMemberIds([...selectedMemberIds, userId]);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-border pb-4 select-none">
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={onBack} className="rounded-xl font-bold shrink-0">
+            ← 목록
+          </Button>
+          <div>
+            <h3 className="text-base font-black text-foreground flex items-center gap-2">
+              <Notebook className="w-5 h-5 text-primary shrink-0" />
+              {study.name}
+            </h3>
+            <p className="text-xs text-muted-foreground font-semibold mt-0.5 line-clamp-1">{study.description}</p>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => setActiveSubTab("minutes")}
+            className={`px-4 py-1.5 text-xs font-bold rounded-xl border transition-all ${activeSubTab === "minutes" ? "bg-primary/10 border-primary/20 text-primary" : "bg-transparent border-border/50 text-muted-foreground hover:text-foreground"}`}
+          >
+            회의록 & 문서
+          </button>
+          <button
+            onClick={() => setActiveSubTab("members")}
+            className={`px-4 py-1.5 text-xs font-bold rounded-xl border transition-all ${activeSubTab === "members" ? "bg-primary/10 border-primary/20 text-primary" : "bg-transparent border-border/50 text-muted-foreground hover:text-foreground"}`}
+          >
+            팀원 구성 ({studyMembers.length}명)
+          </button>
+        </div>
+      </div>
+
+      {activeSubTab === "minutes" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center select-none">
+            <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">주차별 회의록 리스트</span>
+            {isLeaderOrAdmin && (
+              <Button onClick={handleOpenNewMinute} className="rounded-xl font-bold h-8.5 bg-primary gap-1">
+                <Plus className="w-3.5 h-3.5" />
+                회의록 작성
+              </Button>
+            )}
+          </div>
+
+          {minutesLoading ? (
+            <div className="py-12 text-center text-xs font-bold text-muted-foreground/60 animate-pulse">
+              회의록을 불러오는 중...
+            </div>
+          ) : minutes.length === 0 ? (
+            <div className="py-16 text-center border border-dashed rounded-2xl bg-muted/5">
+              <Notebook className="w-8 h-8 mx-auto mb-2 text-muted-foreground/25" />
+              <p className="text-xs font-bold text-muted-foreground/85">작성된 회의록이 없습니다.</p>
+              {isLeaderOrAdmin && <p className="text-[10px] text-muted-foreground/75 mt-1">상단 버튼을 눌러 스터디의 첫 회의 기록을 시작해보세요!</p>}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {minutes.map((m) => (
+                <div
+                  key={m.id}
+                  onClick={() => setSelectedMinuteId(m.id)}
+                  className="p-4 rounded-xl border border-border/50 hover:border-primary/20 bg-card/60 hover:shadow-xs transition-all cursor-pointer flex flex-col justify-between"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold text-muted-foreground">
+                      회의일자: {new Date(m.meetingDate).toLocaleDateString("ko-KR")}
+                    </span>
+                    <span className="text-[10px] font-bold text-foreground/80">
+                      작성자: {m.authorName}
+                    </span>
+                  </div>
+                  <h4 className="font-black text-sm text-foreground mb-1 line-clamp-1">
+                    {m.title}
+                  </h4>
+                  <div className="border-t border-border/30 pt-3 mt-4 flex items-center justify-between text-[10px] text-muted-foreground/75">
+                    <span>수정일: {new Date(m.updatedAt).toLocaleDateString("ko-KR")}</span>
+                    <span className="text-primary font-bold">열람하기 →</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeSubTab === "members" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center select-none">
+            <span className="text-xs font-black text-muted-foreground uppercase tracking-wider">스터디 구성원</span>
+            {isLeaderOrAdmin && (
+              <Button onClick={handleOpenManageMembers} variant="outline" className="rounded-xl font-bold h-8.5 gap-1">
+                <Edit className="w-3.5 h-3.5" />
+                팀원 구성 변경
+              </Button>
+            )}
+          </div>
+
+          {membersLoading ? (
+            <div className="py-12 text-center text-xs font-bold text-muted-foreground/60 animate-pulse">
+              스터디원 조회 중...
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+              {studyMembers.map((m) => {
+                const isStudyLeaderSelf = m.userId === study.leaderId;
+                return (
+                  <div key={m.id} className="p-3.5 rounded-xl border border-border bg-muted/5 flex items-center gap-3">
+                    <Avatar className="w-8.5 h-8.5">
+                      <AvatarFallback className="bg-primary/10 text-primary font-black text-xs">
+                        {m.realName?.charAt(0) ?? m.name?.charAt(0) ?? "M"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-bold text-xs text-foreground">{m.realName ?? m.name}</span>
+                        {isStudyLeaderSelf && (
+                          <Badge className="bg-amber-500 text-white font-bold text-[8px] px-1 py-0.2 shrink-0">스터디장</Badge>
+                        )}
+                      </div>
+                      <p className="text-[9px] font-bold text-muted-foreground/80 mt-0.5">
+                        {m.studentId ? `${m.studentId.substring(2, 4)}학번` : "일반"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 회의록 상세 모달 */}
+      <Dialog open={!!selectedMinuteId} onOpenChange={(open) => { if (!open) setSelectedMinuteId(null); }}>
+        <DialogContent className="rounded-3xl border border-border max-w-lg shadow-2xl overflow-y-auto max-h-[85vh]">
+          {minuteDetail ? (
+            <>
+              <DialogHeader>
+                <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground mb-1 select-none">
+                  <span>회의일자: {new Date(minuteDetail.meetingDate).toLocaleDateString("ko-KR")}</span>
+                  <span>작성자: {minuteDetail.authorName}</span>
+                </div>
+                <DialogTitle className="text-base font-black text-foreground leading-snug">
+                  {minuteDetail.title}
+                </DialogTitle>
+                <DialogDescription className="text-muted-foreground font-semibold text-[10px] mt-1 select-none">
+                  등록일: {new Date(minuteDetail.createdAt).toLocaleDateString("ko-KR")} · 최종수정: {new Date(minuteDetail.updatedAt).toLocaleDateString("ko-KR")}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="my-3 space-y-1.5 text-xs">
+                <span className="text-[10px] font-black text-muted-foreground uppercase tracking-wider select-none">회의록 내용</span>
+                <div className="p-4 bg-muted/5 border border-border/40 rounded-2xl leading-relaxed text-foreground font-medium whitespace-pre-wrap break-all min-h-40">
+                  {minuteDetail.content}
+                </div>
+              </div>
+
+              <DialogFooter className="pt-2 gap-2 flex flex-col sm:flex-row">
+                <div className="flex gap-2 w-full">
+                  {(minuteDetail.authorId === user?.id || isLeaderOrAdmin) && (
+                    <>
+                      <Button 
+                        type="button"
+                        variant="destructive"
+                        className="rounded-xl font-bold" 
+                        onClick={() => {
+                          if (confirm("이 회의록을 삭제하시겠습니까?")) {
+                            deleteMinuteMutation.mutate({ id: minuteDetail.id, studyId, groupId });
+                          }
+                        }}
+                        disabled={deleteMinuteMutation.isPending}
+                      >
+                        삭제
+                      </Button>
+                      <Button 
+                        type="button"
+                        variant="outline"
+                        className="rounded-xl font-bold flex-1" 
+                        onClick={() => handleOpenEditMinute(minuteDetail)}
+                      >
+                        수정
+                      </Button>
+                    </>
+                  )}
+                  <Button 
+                    type="button"
+                    className="rounded-xl font-bold bg-primary flex-1" 
+                    onClick={() => setSelectedMinuteId(null)}
+                  >
+                    닫기
+                  </Button>
+                </div>
+              </DialogFooter>
+            </>
+          ) : (
+            <div className="py-20 text-center text-xs font-bold text-muted-foreground/60 animate-pulse">
+              회의록 상세 내용 로드 중...
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* 회의록 작성 및 수정 모달 */}
+      <Dialog open={minuteModalOpen} onOpenChange={setMinuteModalOpen}>
+        <DialogContent className="rounded-3xl border border-border max-w-lg shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
+              <Notebook className="w-5.5 h-5.5 text-primary" />
+              {editingMinuteId ? "회의록 수정" : "신규 회의록 작성"}
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground font-medium text-xs">
+              스터디 진행 일자, 안건, 스터디 결과 요약 등을 상세히 기입합니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleMinuteSubmit} className="space-y-4 my-3 text-xs">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="sm:col-span-2 space-y-1.5">
+                <label className="text-[11px] font-black text-muted-foreground">회의 제목</label>
+                <Input
+                  value={minuteTitle}
+                  onChange={(e) => setMinuteTitle(e.target.value)}
+                  placeholder="예: 1주차 웹 기초 회의록"
+                  className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-muted-foreground">회의 일시</label>
+                <Input
+                  type="date"
+                  value={minuteDateStr}
+                  onChange={(e) => setMinuteDateStr(e.target.value)}
+                  className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-black text-muted-foreground">회의 내용 및 결과 회고</label>
+              <Textarea
+                value={minuteContent}
+                onChange={(e) => setMinuteContent(e.target.value)}
+                placeholder="어떤 논의가 오갔고 스터디 내용이 무엇인지 상세히 기입해주세요."
+                className="rounded-xl font-medium border-border bg-muted/20 focus-visible:ring-primary h-44 resize-none leading-relaxed"
+                required
+              />
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="rounded-xl font-bold" 
+                onClick={() => setMinuteModalOpen(false)}
+              >
+                취소
+              </Button>
+              <Button 
+                type="submit" 
+                className="rounded-xl font-black shadow-md bg-primary" 
+                disabled={createMinuteMutation.isPending || updateMinuteMutation.isPending}
+              >
+                {editingMinuteId ? "수정 완료" : "등록 완료"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* 스터디 팀원 구성 모달 */}
+      <Dialog open={manageMembersModalOpen} onOpenChange={setManageMembersModalOpen}>
+        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl max-h-[80vh] flex flex-col">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
+              <Edit className="w-5.5 h-5.5 text-primary" />
+              스터디 팀원 지정 및 관리
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground font-medium text-xs">
+              상위 그룹 단원 목록 중 이 스터디에 참여할 팀원들을 선택합니다. 스터디장은 강제 포함됩니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto space-y-2.5 my-3 pr-1 text-xs max-h-[45vh]">
+            {parentMembers.map((m: any) => {
+              const isStudyLeaderSelf = m.userId === study.leaderId;
+              const isChecked = selectedMemberIds.includes(m.userId);
+              return (
+                <div
+                  key={m.userId}
+                  onClick={() => toggleMemberSelection(m.userId)}
+                  className={`p-3 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
+                    isChecked ? "border-primary bg-primary/5 font-bold" : "border-border hover:bg-muted/10"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-8 h-8">
+                      <AvatarFallback className="bg-primary/10 text-primary font-black text-xs">
+                        {m.realName?.charAt(0) ?? m.name?.charAt(0) ?? "M"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs text-foreground">{m.realName ?? m.name}</span>
+                        {isStudyLeaderSelf && (
+                          <Badge className="bg-amber-500 text-white font-bold text-[8px] px-1 py-0.2 shrink-0">스터디장</Badge>
+                        )}
+                      </div>
+                      <span className="text-[9px] font-semibold text-muted-foreground/80 block mt-0.5">
+                        {m.studentId ? `${m.studentId.substring(2, 4)}학번` : "일반"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <input
+                    type="checkbox"
+                    checked={isChecked}
+                    readOnly
+                    disabled={isStudyLeaderSelf}
+                    className="w-4 h-4 rounded accent-primary border-border cursor-pointer"
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          <DialogFooter className="pt-2 gap-2 shrink-0 border-t border-border/30 mt-3 pt-3">
+            <Button 
+              type="button" 
+              variant="outline" 
+              className="rounded-xl font-bold" 
+              onClick={() => setManageMembersModalOpen(false)}
+            >
+              취소
+            </Button>
+            <Button 
+              type="button" 
+              className="rounded-xl font-black shadow-md bg-primary" 
+              onClick={handleSaveMembers}
+              disabled={updateMembersMutation.isPending}
+            >
+              저장 완료
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
