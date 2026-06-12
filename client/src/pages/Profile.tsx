@@ -82,6 +82,18 @@ export default function Profile() {
 
   const [hasInitialized, setHasInitialized] = useState(false);
 
+  const isEmailIdValid = useMemo(() => {
+    return /^[a-zA-Z0-9._-]+$/.test(emailId);
+  }, [emailId]);
+
+  const isRealNameValid = useMemo(() => {
+    return realName.trim().length >= 2 && /^[ㄱ-ㅎ가-힣]+$/.test(realName);
+  }, [realName]);
+
+  const isStudentIdValid = useMemo(() => {
+    return /^\d{9,10}$/.test(studentId);
+  }, [studentId]);
+
   // API 호출
   const { data: profile, isLoading: profileLoading } = trpc.profile.get.useQuery(undefined, {
     enabled: isAuthenticated,
@@ -454,7 +466,7 @@ export default function Profile() {
              * [Step 1] 이메일 인증 단계 (차별화된 입력 잠금 및 OTP Box UI)
              * ───────────────────────────────────────────────────────────────────────────── */}
             {step === "email" && (
-              <div className="space-y-8">
+              <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="flex items-center gap-2.5 mb-2">
                   <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
                     <Mail className="w-6 h-6" />
@@ -479,8 +491,17 @@ export default function Profile() {
                           setEmailId(val);
                         }}
                         disabled={isEmailSent && isTimerActive}
-                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-full font-semibold flex-1 px-4 bg-transparent text-base"
+                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-full font-semibold flex-1 px-4 bg-transparent text-base pr-8"
                       />
+                      {emailId && (
+                        <div className="mr-2 pointer-events-none shrink-0">
+                          {isEmailIdValid ? (
+                            <CheckCircle2 className="w-5 h-5 text-green-500 animate-in zoom-in duration-200" />
+                          ) : (
+                            <X className="w-5 h-5 text-destructive animate-in zoom-in duration-200" />
+                          )}
+                        </div>
+                      )}
                       
                       {/* 차별화된 도메인 잠금(Locked Suffix) 배지 */}
                       <div className="flex items-center gap-1.5 px-4 py-2 mr-2 bg-muted rounded-lg text-sm font-bold text-muted-foreground select-none border border-border">
@@ -595,7 +616,7 @@ export default function Profile() {
              * [Step 2] 학적 정보 입력 단계
              * ───────────────────────────────────────────────────────────────────────────── */}
             {step === "academic" && (
-              <form onSubmit={handleAcademicSubmit} className="space-y-6">
+              <form onSubmit={handleAcademicSubmit} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="p-2 rounded-xl bg-primary/10 text-primary">
                     <School className="w-5 h-5" />
@@ -604,34 +625,56 @@ export default function Profile() {
                 </div>
                 
                 <p className="text-xs text-muted-foreground leading-relaxed">
-                  허위 정보 기입 시 서비스 이용 제한을 받을 수 있습니다. 실명과 학번은 1인 1계정 보안 매칭용도로만 사용됩니다.
+                  허위 정보 기입 시 service 이용 제한을 받을 수 있습니다. 실명과 학번은 1인 1계정 보안 매칭용도로만 사용됩니다.
                 </p>
 
                 {/* RealName */}
                 <div className="space-y-2">
                   <Label htmlFor="realName" className="font-semibold text-xs text-muted-foreground">실명 (한글 본명)</Label>
-                  <Input
-                    id="realName"
-                    placeholder="본인의 한글 이름 입력"
-                    value={realName}
-                    onChange={(e) => setRealName(e.target.value.replace(/[^ㄱ-ㅎ가-힣]/g, ""))}
-                    className="h-12 rounded-xl focus:ring-primary/20 font-semibold"
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      id="realName"
+                      placeholder="본인의 한글 이름 입력"
+                      value={realName}
+                      onChange={(e) => setRealName(e.target.value.replace(/[^ㄱ-ㅎ가-힣]/g, ""))}
+                      className="h-12 rounded-xl focus:ring-primary/20 font-semibold pr-10"
+                      required
+                    />
+                    {realName && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none shrink-0">
+                        {isRealNameValid ? (
+                          <CheckCircle2 className="w-5 h-5 text-green-500 animate-in zoom-in duration-200" />
+                        ) : (
+                          <X className="w-5 h-5 text-destructive animate-in zoom-in duration-200" />
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Student ID */}
                 <div className="space-y-2">
                   <Label htmlFor="studentId" className="font-semibold text-xs text-muted-foreground">학번 (9~10자리)</Label>
-                  <Input
-                    id="studentId"
-                    placeholder="학번 입력 (예: 202612345)"
-                    value={studentId}
-                    onChange={(e) => setStudentId(e.target.value.replace(/\D/g, ""))}
-                    maxLength={10}
-                    className="h-12 rounded-xl focus:ring-primary/20 font-semibold"
-                    required
-                  />
+                  <div className="relative">
+                    <Input
+                      id="studentId"
+                      placeholder="학번 입력 (예: 202612345)"
+                      value={studentId}
+                      onChange={(e) => setStudentId(e.target.value.replace(/\D/g, ""))}
+                      maxLength={10}
+                      className="h-12 rounded-xl focus:ring-primary/20 font-semibold pr-10"
+                      required
+                    />
+                    {studentId && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none shrink-0">
+                        {isStudentIdValid ? (
+                          <CheckCircle2 className="w-5 h-5 text-green-500 animate-in zoom-in duration-200" />
+                        ) : (
+                          <X className="w-5 h-5 text-destructive animate-in zoom-in duration-200" />
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Admission Year */}
@@ -660,9 +703,14 @@ export default function Profile() {
                     }`}
                     onClick={() => setShowDeptSuggestions(!showDeptSuggestions)}
                   >
-                    {selectedDepartmentName || "학과 검색 후 선택"}
-                    <div className={`transition-transform duration-200 ${showDeptSuggestions ? "rotate-180" : ""}`}>
-                      <Plus className="w-4 h-4 text-primary" />
+                    <span>{selectedDepartmentName || "학과 검색 후 선택"}</span>
+                    <div className="flex items-center gap-1.5">
+                      {departmentId && (
+                        <CheckCircle2 className="w-4 h-4 text-green-500 animate-in zoom-in duration-200" />
+                      )}
+                      <div className={`transition-transform duration-200 ${showDeptSuggestions ? "rotate-180" : ""}`}>
+                        <Plus className="w-4 h-4 text-primary" />
+                      </div>
                     </div>
                   </div>
 
@@ -731,7 +779,7 @@ export default function Profile() {
              * [Step 3] 상세 프로필 등록 단계
              * ───────────────────────────────────────────────────────────────────────────── */}
             {step === "profile" && (
-              <form onSubmit={handleProfileSubmit} className="space-y-6">
+              <form onSubmit={handleProfileSubmit} className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                 
                 {user?.status === "verified" && user?.realName && user?.studentId && (
                   <div className="bg-muted/30 border border-border/80 rounded-2xl p-4 mb-2">
@@ -766,7 +814,10 @@ export default function Profile() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="font-semibold text-xs text-muted-foreground">학교 인증 실명</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="font-semibold text-xs text-muted-foreground">학교 인증 실명</Label>
+                    <CheckCircle2 className="w-3.5 h-3.5 text-green-500 animate-in zoom-in" />
+                  </div>
                   <Input value={user?.realName ?? "미인증"} disabled className="bg-muted h-12 rounded-xl text-muted-foreground font-semibold" />
                   <p className="text-[10px] text-muted-foreground px-1">
                     실명은 학교 이메일 인증(학적 등록) 시 기입한 이름을 사용하며 변경할 수 없습니다.
@@ -833,7 +884,10 @@ export default function Profile() {
 
                 {/* Grade */}
                 <div className="space-y-2">
-                  <Label className="font-semibold text-xs text-muted-foreground">학년</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="font-semibold text-xs text-muted-foreground">학년</Label>
+                    {grade && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 animate-in zoom-in duration-200" />}
+                  </div>
                   <div className="flex gap-2 flex-wrap">
                     {GRADES.map((g) => (
                       <button
@@ -854,7 +908,10 @@ export default function Profile() {
 
                 {/* Bio */}
                 <div className="space-y-2">
-                  <Label htmlFor="bio" className="font-semibold text-xs text-muted-foreground">자기소개</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label htmlFor="bio" className="font-semibold text-xs text-muted-foreground">자기소개</Label>
+                    {bio.trim().length > 0 && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 animate-in zoom-in duration-200" />}
+                  </div>
                   <Textarea
                     id="bio"
                     value={bio}
@@ -878,6 +935,7 @@ export default function Profile() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <Label className="font-semibold text-xs text-muted-foreground">관심 키워드</Label>
+                    {keywords.length > 0 && <CheckCircle2 className="w-3.5 h-3.5 text-green-500 animate-in zoom-in duration-200" />}
                     <span className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full flex items-center gap-1 font-bold">
                       <Sparkles className="w-3 h-3 animate-pulse" />
                       추천 매칭 우선순위 반영
