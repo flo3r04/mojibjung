@@ -200,7 +200,10 @@ export default function PostDetail() {
   });
 
   const toggleBookmarkMutation = trpc.post.toggleBookmark.useMutation({
-    onSuccess: () => utils.post.get.invalidate({ id: postId }),
+    onSuccess: () => {
+      utils.post.get.invalidate({ id: postId });
+      utils.calendar.list.invalidate();
+    },
     onError: err => toast.error(err.message),
   });
 
@@ -886,21 +889,6 @@ export default function PostDetail() {
                             ? `${deadlineDate.toLocaleDateString("ko-KR")} ${deadlineDate.getHours().toString().padStart(2, "0")}:${deadlineDate.getMinutes().toString().padStart(2, "0")}`
                             : "상시모집"}
                         </p>
-                        {deadlineDate && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleAddToCalendar}
-                            className={`h-8 rounded-xl font-bold border flex items-center gap-1.5 justify-center mt-1 text-[10px] w-full cursor-pointer transition-all ${
-                              isBookmarked
-                                ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
-                                : "border-primary/20 text-primary hover:bg-primary/5"
-                            }`}
-                          >
-                            <Calendar className="w-3.5 h-3.5" />
-                            {isBookmarked ? "캘린더 연동 완료 (해제)" : "내 캘린더에 마감일 추가"}
-                          </Button>
-                        )}
                       </div>
                     </div>
                     <div>
@@ -914,6 +902,36 @@ export default function PostDetail() {
                       </p>
                     </div>
                   </div>
+
+                  {/* 마이 캘린더 추가 버튼 — 마감일이 있을 때만 표시 */}
+                  {deadlineDate && (
+                    <div className="relative z-10 mb-6">
+                      <button
+                        onClick={() => {
+                          handleAddToCalendar();
+                          utils.calendar.list.invalidate();
+                        }}
+                        disabled={toggleBookmarkMutation.isPending}
+                        className={`w-full flex items-center justify-center gap-2.5 rounded-2xl py-3.5 px-5 font-bold text-sm border-2 transition-all duration-200 cursor-pointer select-none ${
+                          isBookmarked
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20 hover:border-emerald-500/50"
+                            : "bg-primary/5 border-primary/20 text-primary hover:bg-primary/10 hover:border-primary/40"
+                        } disabled:opacity-50 disabled:cursor-not-allowed`}
+                      >
+                        <Calendar className="w-4 h-4 shrink-0" />
+                        <span>
+                          {isBookmarked
+                            ? "✓ 마이 캘린더 연동 완료 — 클릭 시 해제"
+                            : "내 캘린더에 마감일 추가"}
+                        </span>
+                      </button>
+                      {!isBookmarked && (
+                        <p className="text-[10px] text-muted-foreground font-semibold text-center mt-1.5">
+                          추가 시 마이 캘린더에 '모집 마감일'로 자동 등록됩니다.
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="mb-10 relative z-10">
                     <p className="text-muted-foreground text-[11px] font-bold uppercase tracking-wider mb-3 opacity-60">

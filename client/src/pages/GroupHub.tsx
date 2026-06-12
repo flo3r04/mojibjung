@@ -226,8 +226,9 @@ export default function GroupHub() {
 
   const handleCreateRoleSubmit = () => {
     if (!newRoleName.trim() || !selectedGroupId) return;
+    const gid = selectedGroupId;
     createRoleMutation.mutate({
-      groupId: selectedGroupId,
+      groupId: gid,
       name: newRoleName.trim(),
       canManageSchedule: newRoleSchedule ? 1 : 0,
       canManageNotice: newRoleNotice ? 1 : 0,
@@ -240,8 +241,9 @@ export default function GroupHub() {
       toast.error("제목과 시작일, 종료일을 모두 입력해주세요.");
       return;
     }
+    const gid = selectedGroupId;
     createEventMutation.mutate({
-      groupId: selectedGroupId,
+      groupId: gid,
       title: eventTitle.trim(),
       description: eventDesc.trim() || undefined,
       startDate: new Date(eventStart).toISOString(),
@@ -256,8 +258,9 @@ export default function GroupHub() {
       toast.error("제목과 내용을 모두 입력해주세요.");
       return;
     }
+    const gid = selectedGroupId;
     createAnnouncementMutation.mutate({
-      groupId: selectedGroupId,
+      groupId: gid,
       title: noticeTitle.trim(),
       content: noticeContent.trim(),
     });
@@ -266,8 +269,9 @@ export default function GroupHub() {
   const handleSendChatSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!chatInput.trim() || !selectedGroupId) return;
+    const gid = selectedGroupId;
     sendChatMessageMutation.mutate({
-      groupId: selectedGroupId,
+      groupId: gid,
       content: chatInput.trim(),
     });
   };
@@ -543,7 +547,7 @@ export default function GroupHub() {
                                     {(permissions?.isLeader || permissions?.canManageNotice || user?.role === "admin") && (
                                       <button 
                                         className="p-1 rounded bg-transparent text-muted-foreground hover:text-destructive hover:bg-destructive/5 shrink-0 transition-colors opacity-0 group-hover/notice:opacity-100"
-                                        onClick={() => deleteAnnouncementMutation.mutate({ groupId: selectedGroupId, id: notice.id })}
+                                        onClick={() => deleteAnnouncementMutation.mutate({ groupId: selectedGroupId ?? 0, id: notice.id })}
                                       >
                                         <Trash2 className="w-3.5 h-3.5" />
                                       </button>
@@ -604,7 +608,7 @@ export default function GroupHub() {
                                 evt={evt}
                                 permissions={permissions}
                                 user={user}
-                                onDelete={() => deleteEventMutation.mutate({ id: evt.id, groupId: selectedGroupId })}
+                                onDelete={() => deleteEventMutation.mutate({ id: evt.id, groupId: selectedGroupId ?? 0 })}
                                 selectedGroupId={selectedGroupId ?? 0}
                               />
                             ))
@@ -658,7 +662,7 @@ export default function GroupHub() {
                                     </div>
                                     <button 
                                       className="p-1 rounded bg-transparent text-muted-foreground hover:text-destructive hover:bg-destructive/5 shrink-0 transition-colors opacity-0 group-hover/role:opacity-100"
-                                      onClick={() => deleteRoleMutation.mutate({ groupId: selectedGroupId, roleId: role.id })}
+                                      onClick={() => deleteRoleMutation.mutate({ groupId: selectedGroupId ?? 0, roleId: role.id })}
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
                                     </button>
@@ -734,7 +738,7 @@ export default function GroupHub() {
                                         onChange={(e) => {
                                           const val = e.target.value;
                                           assignRoleMutation.mutate({
-                                            groupId: selectedGroupId,
+                                            groupId: selectedGroupId ?? 0,
                                             userId: mb.userId,
                                             roleId: val ? parseInt(val) : null,
                                           });
@@ -753,7 +757,7 @@ export default function GroupHub() {
                                           variant="ghost" 
                                           size="icon" 
                                           className="h-8.5 w-8.5 text-muted-foreground hover:text-destructive hover:bg-destructive/5 rounded-xl shrink-0"
-                                          onClick={() => removeMemberMutation.mutate({ groupId: selectedGroupId, userId: mb.userId })}
+                                          onClick={() => removeMemberMutation.mutate({ groupId: selectedGroupId ?? 0, userId: mb.userId })}
                                           title="일정 연동 해제 (그룹 퇴출)"
                                         >
                                           <UserX className="w-4.5 h-4.5" />
