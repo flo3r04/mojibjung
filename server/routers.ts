@@ -71,6 +71,16 @@ import {
   deleteGroupAnnouncement,
   getGroupChatMessages,
   createGroupChatMessage,
+  createNotification,
+  getUserNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead,
+  getGroupFiles,
+  createGroupFile,
+  deleteGroupFile,
+  archiveGroup,
+  getGroupArchives,
+  getGroupArchiveDetail,
 } from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -450,12 +460,58 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ ctx, input }) => {
-        return createComment({
+        const commentResult = await createComment({
           postId: input.postId,
           authorId: ctx.user.id,
           content: input.content,
           parentId: input.parentId ?? null,
         });
+
+        // 비동기 알림 생성 (실패해도 댓글 생성은 정상 진행되도록 예외 처리)
+        try {
+          const post = await getPostById(input.postId);
+          if (post) {
+            const postAuthorId = post.post.authorId;
+            const link = `/post/${input.postId}`;
+            const commenterName = ctx.user.realName || ctx.user.name || "누군가";
+
+            // 1. 게시글 작성자에게 알림 (작성자가 본인이 아닐 때만)
+            if (postAuthorId !== ctx.user.id) {
+              await createNotification({
+                userId: postAuthorId,
+                type: "comment",
+                title: "새 댓글이 등록되었습니다.",
+                content: `${commenterName}님이 회원님의 글 '${post.post.title}'에 댓글을 남겼습니다: "${input.content.substring(0, 30)}"`,
+                link,
+              });
+            }
+
+            // 2. 대댓글인 경우 부모 댓글 작성자에게 알림
+            if (input.parentId) {
+              const db = await getDb();
+              if (db) {
+                const { comments } = await import("../drizzle/schema");
+                const parentRows = await db.select().from(comments).where(eq(comments.id, input.parentId)).limit(1);
+                if (parentRows[0]) {
+                  const parentAuthorId = parentRows[0].authorId;
+                  if (parentAuthorId !== ctx.user.id && parentAuthorId !== postAuthorId) {
+                    await createNotification({
+                      userId: parentAuthorId,
+                      type: "comment",
+                      title: "새 답글이 등록되었습니다.",
+                      content: `${commenterName}님이 회원님의 댓글에 답글을 남겼습니다: "${input.content.substring(0, 30)}"`,
+                      link,
+                    });
+                  }
+                }
+              }
+            }
+          }
+        } catch (notifErr) {
+          console.error("[CommentNotifError] 알림 생성 실패:", notifErr);
+        }
+
+        return commentResult;
       }),
 
     // 댓글 삭제 — 정회원만
@@ -822,6 +878,26 @@ export const appRouter = router({
           }
         }
 
+        // 비동기 알림 전송
+        try {
+          const statusMessages = {
+            "1차합격": `축하합니다! 모집글 '${post.post.title}'의 1차 서류에 합격하셨습니다. 면접 일정을 확인해 주세요.`,
+            수락: `축하합니다! 모집글 '${post.post.title}'에 최종 합격하셨습니다.`,
+            거절: `아쉽게도 모집글 '${post.post.title}'에 미선발되셨습니다. 다음 기회에 함께할 수 있기를 바랍니다.`,
+          };
+
+          const link = "/mypage";
+          await createNotification({
+            userId: app.applicantId,
+            type: "application_status",
+            title: `신청서 결과 안내 [${input.status}]`,
+            content: statusMessages[input.status],
+            link,
+          });
+        } catch (notifErr) {
+          console.error("[ApplicationNotifError] 알림 생성 실패:", notifErr);
+        }
+
         return result;
       }),
 
@@ -1165,12 +1241,27 @@ export const appRouter = router({
             message: "차단 관계로 인해 메시지를 보낼 수 없습니다.",
           });
         }
-        return sendMessage({
+        const msgResult = await sendMessage({
           senderId: ctx.user.id,
           receiverId: input.receiverId,
           postId: input.postId ?? null,
           content: input.content,
         });
+
+        try {
+          const senderName = ctx.user.realName || ctx.user.name || "누군가";
+          await createNotification({
+            userId: input.receiverId,
+            type: "message",
+            title: "새로운 쪽지가 도착했습니다.",
+            content: `${senderName}님으로부터 쪽지가 왔습니다: "${input.content.substring(0, 30)}"`,
+            link: "/messages",
+          });
+        } catch (notifErr) {
+          console.error("[MessageNotifError] 알림 생성 실패:", notifErr);
+        }
+
+        return msgResult;
       }),
 
     list: protectedVerifiedProcedure
@@ -1367,7 +1458,7 @@ export const appRouter = router({
           });
         }
 
-        return createGroupCalendarEvent({
+        const eventResult = await createGroupCalendarEvent({
           userId: null,
           groupId: input.groupId,
           title: input.title,
@@ -1378,6 +1469,36 @@ export const appRouter = router({
           isPrivate: input.isPrivate,
           hasRsvp: input.hasRsvp,
         });
+
+        try {
+          const members = await getGroupMembers(input.groupId);
+          const groupDetail = await getGroupById(input.groupId);
+          const groupName = groupDetail?.name || "소속 그룹";
+          const link = "/groups";
+
+          for (const member of members) {
+            if (member.userId === ctx.user.id) continue;
+
+            if (input.isPrivate === 1) {
+              const perm = await checkGroupPermissions(member.userId, input.groupId);
+              if (!perm.isLeader && !perm.canViewPrivateEvent) {
+                continue;
+              }
+            }
+
+            await createNotification({
+              userId: member.userId,
+              type: "group_event",
+              title: `'${groupName}' 새로운 일정 등록`,
+              content: `새로운 일정 '${input.title}'이 등록되었습니다.`,
+              link,
+            });
+          }
+        } catch (notifErr) {
+          console.error("[GroupEventNotifError] 알림 생성 실패:", notifErr);
+        }
+
+        return eventResult;
       }),
 
     // 그룹 일정 수정 (리더 또는 스케줄 권한자 전용)
@@ -1658,12 +1779,33 @@ export const appRouter = router({
           });
         }
 
-        return createGroupAnnouncement({
+        const announceResult = await createGroupAnnouncement({
           groupId: input.groupId,
           authorId: ctx.user.id,
           title: input.title,
           content: input.content,
         });
+
+        try {
+          const members = await getGroupMembers(input.groupId);
+          const link = "/groups";
+
+          for (const member of members) {
+            if (member.userId === ctx.user.id) continue;
+
+            await createNotification({
+              userId: member.userId,
+              type: "group_notice",
+              title: `'${group.name}' 새로운 공지사항 등록`,
+              content: `새로운 공지 '${input.title}'가 등록되었습니다.`,
+              link,
+            });
+          }
+        } catch (notifErr) {
+          console.error("[GroupNoticeNotifError] 알림 생성 실패:", notifErr);
+        }
+
+        return announceResult;
       }),
 
     // 공지사항 삭제 (리더 또는 공지권한자 전용)
@@ -1729,6 +1871,138 @@ export const appRouter = router({
           content: input.content,
         });
       }),
+
+    // 그룹 자료실 목록 조회
+    listFiles: protectedVerifiedProcedure
+      .input(z.object({ groupId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+        if (!perm.isLeader && !perm.roleName && ctx.user.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "그룹 멤버만 자료실을 조회할 수 있습니다.",
+          });
+        }
+        return getGroupFiles(input.groupId);
+      }),
+
+    // 그룹 자료실 파일 가상 업로드
+    uploadFile: protectedVerifiedProcedure
+      .input(
+        z.object({
+          groupId: z.number(),
+          fileName: z.string().min(1).max(255),
+          fileSize: z.number().int().positive(),
+          fileType: z.string().max(100),
+          fileUrl: z.string().url(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+        if (!perm.isLeader && !perm.roleName && ctx.user.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "그룹 멤버만 파일을 업로드할 수 있습니다.",
+          });
+        }
+        return createGroupFile({
+          groupId: input.groupId,
+          uploaderId: ctx.user.id,
+          fileName: input.fileName,
+          fileSize: input.fileSize,
+          fileType: input.fileType,
+          fileUrl: input.fileUrl,
+        });
+      }),
+
+    // 그룹 자료실 파일 삭제
+    deleteFile: protectedVerifiedProcedure
+      .input(z.object({ id: z.number(), groupId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { groupFiles } = await import("../drizzle/schema");
+        const rows = await db.select().from(groupFiles).where(eq(groupFiles.id, input.id)).limit(1);
+        if (!rows[0]) throw new TRPCError({ code: "NOT_FOUND", message: "파일을 찾을 수 없습니다." });
+        
+        const file = rows[0];
+        const isUploader = file.uploaderId === ctx.user.id;
+        const isLeader = perm.isLeader || ctx.user.role === "admin";
+
+        if (!isUploader && !isLeader) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "파일을 삭제할 권한이 없습니다.",
+          });
+        }
+
+        await deleteGroupFile(input.id);
+        return { success: true };
+      }),
+
+    // 그룹 아카이브 처리
+    archive: protectedVerifiedProcedure
+      .input(
+        z.object({
+          groupId: z.number(),
+          title: z.string().min(1).max(200),
+          summary: z.string().min(1).max(500),
+          content: z.string().min(1),
+          period: z.string().min(1).max(100),
+          imageUrl: z.string().url().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        try {
+          return await archiveGroup(input.groupId, ctx.user.id, {
+            title: input.title,
+            summary: input.summary,
+            content: input.content,
+            period: input.period,
+            imageUrl: input.imageUrl,
+          });
+        } catch (err: any) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: err.message || "아카이브 처리에 실패했습니다.",
+          });
+        }
+      }),
+
+    // 아카이브 리스트 조회
+    listArchives: publicProcedure.query(async () => {
+      return getGroupArchives();
+    }),
+
+    // 아카이브 상세 조회
+    getArchive: publicProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        const archive = await getGroupArchiveDetail(input.id);
+        if (!archive) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "아카이브 정보를 찾을 수 없습니다.",
+          });
+        }
+        return archive;
+      }),
+  }),
+
+  // [알림 관련 API]
+  notification: router({
+    list: protectedProcedure.query(async ({ ctx }) => {
+      return getUserNotifications(ctx.user.id);
+    }),
+    markAsRead: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        return markNotificationAsRead(input.id, ctx.user.id);
+      }),
+    markAllAsRead: protectedProcedure.mutation(async ({ ctx }) => {
+      return markAllNotificationsAsRead(ctx.user.id);
+    }),
   }),
 });
 

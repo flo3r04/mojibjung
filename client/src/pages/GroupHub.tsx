@@ -32,7 +32,12 @@ import {
   ArrowRight,
   ShieldCheck,
   Menu,
-  X
+  X,
+  FolderOpen,
+  File,
+  Download,
+  UploadCloud,
+  Archive
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -42,7 +47,7 @@ export default function GroupHub() {
   const utils = trpc.useUtils();
 
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"chat" | "calendar" | "members">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "calendar" | "members" | "files">("chat");
   const [copiedKeyGroupId, setCopiedKeyGroupId] = useState<number | null>(null);
 
   // Group join access key
@@ -68,6 +73,14 @@ export default function GroupHub() {
   const [noticeModalOpen, setNoticeModalOpen] = useState(false);
   const [noticeTitle, setNoticeTitle] = useState("");
   const [noticeContent, setNoticeContent] = useState("");
+
+  // Group archiving state
+  const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+  const [archiveTitle, setArchiveTitle] = useState("");
+  const [archiveSummary, setArchiveSummary] = useState("");
+  const [archiveContent, setArchiveContent] = useState("");
+  const [archivePeriod, setArchivePeriod] = useState("");
+  const [archiveImageUrl, setArchiveImageUrl] = useState("");
 
   // Chat input state
   const [chatInput, setChatInput] = useState("");
@@ -187,6 +200,15 @@ export default function GroupHub() {
       utils.group.listEvents.invalidate({ groupId: selectedGroupId ?? 0 });
       utils.calendar.list.invalidate();
       toast.success("일정이 삭제되었습니다.");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const archiveGroupMutation = trpc.group.archive.useMutation({
+    onSuccess: () => {
+      utils.group.myJoinedGroups.invalidate();
+      setArchiveModalOpen(false);
+      toast.success("그룹 활동이 종료되고 아카이브 포트폴리오가 발행되었습니다!");
     },
     onError: (err) => toast.error(err.message),
   });
@@ -426,6 +448,13 @@ export default function GroupHub() {
                       <Calendar className="w-4.5 h-4.5" />
                       그룹 일정 관리
                     </button>
+                    <button
+                      onClick={() => setActiveTab("files")}
+                      className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${activeTab === "files" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                    >
+                      <FolderOpen className="w-4.5 h-4.5" />
+                      자료실 (파일 공유)
+                    </button>
                     {(selectedGroup.isLeader || user?.role === "admin") && (
                       <button
                         onClick={() => setActiveTab("members")}
@@ -632,20 +661,43 @@ export default function GroupHub() {
                                 우리 집단만의 지위(역할)를 생성하고 그에 알맞은 권한들을 직접 분배합니다.
                               </p>
                             </div>
-                            <Button 
-                              size="sm" 
-                              variant="outline" 
-                              className="font-bold border-primary text-primary hover:bg-primary/5 rounded-xl h-9.5 gap-1 shrink-0 self-start sm:self-center"
-                              onClick={() => {
-                                setNewRoleName("");
-                                setNewRoleSchedule(false);
-                                setNewRoleNotice(false);
-                                setNewRolePrivate(false);
-                                setRoleModalOpen(true);
-                              }}
-                            >
-                              <Plus className="w-4 h-4" /> 지위 생성
-                            </Button>
+                            <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="font-bold border-primary text-primary hover:bg-primary/5 rounded-xl h-9.5 gap-1 shrink-0"
+                                onClick={() => {
+                                  setNewRoleName("");
+                                  setNewRoleSchedule(false);
+                                  setNewRoleNotice(false);
+                                  setNewRolePrivate(false);
+                                  setRoleModalOpen(true);
+                                }}
+                              >
+                                <Plus className="w-4 h-4" /> 지위 생성
+                              </Button>
+                              {selectedGroup?.isArchived === 0 ? (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  className="font-bold rounded-xl h-9.5 gap-1 shrink-0 bg-rose-600 hover:bg-rose-700 text-white"
+                                  onClick={() => {
+                                    setArchiveTitle(selectedGroup?.name ? `${selectedGroup.name} 활동 아카이브` : "");
+                                    setArchiveSummary("");
+                                    setArchiveContent("");
+                                    setArchivePeriod("2026.03 ~ 2026.06");
+                                    setArchiveImageUrl("");
+                                    setArchiveModalOpen(true);
+                                  }}
+                                >
+                                  <Archive className="w-4 h-4" /> 그룹 종료 & 아카이브
+                                </Button>
+                              ) : (
+                                <Badge variant="secondary" className="font-black text-xs px-3 py-1.5 rounded-xl flex items-center gap-1 bg-muted text-muted-foreground select-none">
+                                  ✓ 아카이브 완료됨
+                                </Badge>
+                              )}
+                            </div>
                           </div>
 
                           <div className="flex-1 space-y-3.5 overflow-y-auto pr-1">
@@ -771,6 +823,16 @@ export default function GroupHub() {
                           </div>
                         </div>
 
+                      </div>
+                    )}
+
+                    {activeTab === "files" && (
+                      <div className="flex-1 p-6 overflow-y-auto bg-card">
+                        <GroupFilesSection
+                          groupId={selectedGroupId ?? 0}
+                          isLeader={selectedGroup?.isLeader ?? false}
+                          user={user}
+                        />
                       </div>
                     )}
                   </div>
@@ -1034,6 +1096,108 @@ export default function GroupHub() {
               disabled={createAnnouncementMutation.isPending}
             >
               배포하기
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal 4: Group Archiving Portfolio */}
+      <Dialog open={archiveModalOpen} onOpenChange={setArchiveModalOpen}>
+        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-black text-foreground flex items-center gap-2">
+              <Archive className="w-5.5 h-5.5 text-rose-600" />
+              그룹 활동 종료 및 아카이브 발행
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground font-medium text-xs">
+              공식 활동을 종료하며 그동안의 결과보고서 및 포트폴리오를 발행합니다. 발행된 아카이브는 커뮤니티 전시관에 박제됩니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 my-3 text-xs">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-black text-muted-foreground">아카이브 제목</label>
+              <Input
+                value={archiveTitle}
+                onChange={(e) => setArchiveTitle(e.target.value)}
+                placeholder="예: HUFS 알고리즘 학회 2026 1학기 활동 아카이브"
+                className="rounded-xl font-bold border-border bg-muted/20 focus-visible:ring-primary"
+                maxLength={200}
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-muted-foreground">활동 기간</label>
+                <Input
+                  value={archivePeriod}
+                  onChange={(e) => setArchivePeriod(e.target.value)}
+                  placeholder="예: 2026.03 ~ 2026.06"
+                  className="rounded-xl font-bold border-border bg-muted/20 focus-visible:ring-primary"
+                  maxLength={100}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-muted-foreground">대표 이미지 URL (선택)</label>
+                <Input
+                  value={archiveImageUrl}
+                  onChange={(e) => setArchiveImageUrl(e.target.value)}
+                  placeholder="https://..."
+                  className="rounded-xl font-bold border-border bg-muted/20 focus-visible:ring-primary"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-black text-muted-foreground">활동 요약 (한 줄 소개)</label>
+              <Input
+                value={archiveSummary}
+                onChange={(e) => setArchiveSummary(e.target.value)}
+                placeholder="간략한 활동 핵심 소개 (500자 이내)"
+                className="rounded-xl font-bold border-border bg-muted/20 focus-visible:ring-primary"
+                maxLength={500}
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-black text-muted-foreground">활동 상세 회고 및 포트폴리오 성과</label>
+              <Textarea
+                value={archiveContent}
+                onChange={(e) => setArchiveContent(e.target.value)}
+                placeholder="회의록 모음, 스터디를 통해 이룬 결과물, 프로젝트 링크, 활동 후기 등을 풍성하게 기록하세요."
+                className="rounded-xl font-medium border-border bg-muted/20 focus-visible:ring-primary h-36 resize-none leading-relaxed"
+                required
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button type="button" variant="outline" className="rounded-xl font-bold" onClick={() => setArchiveModalOpen(false)}>
+              취소
+            </Button>
+            <Button 
+              type="button"
+              className="rounded-xl font-black shadow-md bg-rose-600 hover:bg-rose-700 text-white" 
+              onClick={() => {
+                if (!archiveTitle.trim() || !archiveSummary.trim() || !archiveContent.trim() || !archivePeriod.trim()) {
+                  toast.error("필수 입력 값을 모두 채워주세요.");
+                  return;
+                }
+                archiveGroupMutation.mutate({
+                  groupId: selectedGroupId ?? 0,
+                  title: archiveTitle,
+                  summary: archiveSummary,
+                  content: archiveContent,
+                  period: archivePeriod,
+                  imageUrl: archiveImageUrl || undefined,
+                });
+              }}
+              disabled={archiveGroupMutation.isPending}
+            >
+              활동 종료 & 발행하기
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1313,6 +1477,243 @@ function GroupSidebarSection({
           })
         )}
       </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// [신규] 자료실 탭 컨텐츠 렌더링 컴포넌트
+// ============================================================================
+function GroupFilesSection({
+  groupId,
+  isLeader,
+  user,
+}: {
+  groupId: number;
+  isLeader: boolean;
+  user: any;
+}) {
+  const utils = trpc.useUtils();
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const [fileSizeStr, setFileSizeStr] = useState("1024"); // KB 단위 입력
+  const [fileType, setFileType] = useState("application/pdf");
+  const [fileUrl, setFileUrl] = useState("https://hufs.ac.kr/files/sample.pdf");
+
+  const { data: files = [], isLoading } = trpc.group.listFiles.useQuery({ groupId });
+
+  const uploadMutation = trpc.group.uploadFile.useMutation({
+    onSuccess: () => {
+      utils.group.listFiles.invalidate({ groupId });
+      setUploadModalOpen(false);
+      setFileName("");
+      toast.success("파일이 등록되었습니다. (가상 자료)");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const deleteMutation = trpc.group.deleteFile.useMutation({
+    onSuccess: () => {
+      utils.group.listFiles.invalidate({ groupId });
+      toast.success("파일이 삭제되었습니다.");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleUploadSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fileName.trim()) {
+      toast.error("파일명은 필수입니다.");
+      return;
+    }
+    const sizeInBytes = parseInt(fileSizeStr) * 1024;
+    uploadMutation.mutate({
+      groupId,
+      fileName,
+      fileSize: sizeInBytes,
+      fileType,
+      fileUrl,
+    });
+  };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center select-none">
+        <div>
+          <h3 className="text-base font-black text-foreground flex items-center gap-2">
+            📂 그룹 자료실
+          </h3>
+          <p className="text-xs text-muted-foreground font-semibold mt-1">강의안, 과제제출물 등 부원들이 함께 공유할 파일을 관리합니다.</p>
+        </div>
+        <Button
+          type="button"
+          onClick={() => setUploadModalOpen(true)}
+          className="rounded-xl font-bold gap-1.5 h-9 bg-primary"
+        >
+          <UploadCloud className="w-4 h-4" />
+          자료 등록
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="py-24 text-center text-xs font-bold text-muted-foreground/60 animate-pulse">
+          자료실 로딩 중...
+        </div>
+      ) : files.length === 0 ? (
+        <div className="py-20 text-center border-2 border-dashed border-border/60 rounded-2xl bg-muted/5">
+          <FolderOpen className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
+          <p className="text-xs font-black text-muted-foreground">자료실이 비어 있습니다.</p>
+          <p className="text-[10px] text-muted-foreground/80 mt-1">우측 상단 자료 등록 버튼으로 그룹 자료를 공유해 보세요!</p>
+        </div>
+      ) : (
+        <div className="border border-border/60 bg-card rounded-2xl overflow-hidden shadow-xs">
+          <table className="w-full text-left text-xs font-medium border-collapse">
+            <thead>
+              <tr className="bg-muted/30 border-b border-border/50 text-muted-foreground select-none text-[10px] font-black uppercase">
+                <th className="py-3 px-4">파일명</th>
+                <th className="py-3 px-4 hidden sm:table-cell">파일 정보</th>
+                <th className="py-3 px-4 hidden md:table-cell">업로더</th>
+                <th className="py-3 px-4 hidden lg:table-cell">등록일</th>
+                <th className="py-3 px-4 text-right">관리</th>
+              </tr>
+            </thead>
+            <tbody>
+              {files.map((f: any) => {
+                const isUploader = f.uploaderId === user?.id;
+                const canDelete = isUploader || isLeader || user?.role === "admin";
+                return (
+                  <tr key={f.id} className="border-b border-border/40 hover:bg-muted/10 transition-colors">
+                    <td className="py-3.5 px-4 font-bold text-foreground">
+                      <div className="flex items-center gap-2">
+                        <File className="w-4 h-4 text-primary shrink-0" />
+                        <span className="truncate max-w-[200px] sm:max-w-xs">{f.fileName}</span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 hidden sm:table-cell font-semibold text-muted-foreground/80">
+                      {formatBytes(f.fileSize)} ({f.fileType.split("/")[1] || "파일"})
+                    </td>
+                    <td className="py-3.5 px-4 hidden md:table-cell font-bold text-foreground/80">
+                      {f.uploaderName}
+                    </td>
+                    <td className="py-3.5 px-4 hidden lg:table-cell font-medium text-muted-foreground/75">
+                      {new Date(f.createdAt).toLocaleDateString("ko-KR")}
+                    </td>
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <a
+                          href={f.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 rounded-lg border border-border/50 bg-background text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all cursor-pointer"
+                          title="다운로드"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                        {canDelete && (
+                          <button
+                            onClick={() => {
+                              if (confirm("이 파일을 자료실에서 삭제하시겠습니까?")) {
+                                deleteMutation.mutate({ id: f.id, groupId });
+                              }
+                            }}
+                            className="p-1.5 rounded-lg border border-transparent text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all cursor-pointer"
+                            title="삭제"
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* 파일 가상 업로드 모달창 */}
+      <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
+        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
+              <UploadCloud className="w-5.5 h-5.5 text-primary" />
+              자료 공유 등록
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground font-medium text-xs">
+              학습자료나 발표자료를 가상 파일 형태로 공유 목록에 등록합니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleUploadSubmit} className="space-y-4 my-3 text-xs">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-black text-muted-foreground">공유 파일명</label>
+              <Input
+                value={fileName}
+                onChange={(e) => setFileName(e.target.value)}
+                placeholder="예: 스터디 3주차 파이썬 강의자료.pdf"
+                className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary"
+                required
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-muted-foreground">파일 크기 (KB)</label>
+                <Input
+                  type="number"
+                  value={fileSizeStr}
+                  onChange={(e) => setFileSizeStr(e.target.value)}
+                  className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-muted-foreground">파일 확장자 타입</label>
+                <select
+                  value={fileType}
+                  onChange={(e) => setFileType(e.target.value)}
+                  className="w-full rounded-xl font-bold h-10 px-3 border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="application/pdf">PDF 파일 (.pdf)</option>
+                  <option value="application/vnd.openxmlformats-officedocument.presentationml.presentation">PPT 발표자료 (.pptx)</option>
+                  <option value="image/png">이미지 (.png)</option>
+                  <option value="text/plain">텍스트 문서 (.txt)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-black text-muted-foreground">파일 다운로드 링크 (가상 URL)</label>
+              <Input
+                value={fileUrl}
+                onChange={(e) => setFileUrl(e.target.value)}
+                placeholder="https://..."
+                className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary"
+                required
+              />
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button type="button" variant="outline" className="rounded-xl font-bold" onClick={() => setUploadModalOpen(false)}>
+                취소
+              </Button>
+              <Button type="submit" className="rounded-xl font-black shadow-md bg-primary" disabled={uploadMutation.isPending}>
+                등록 완료
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

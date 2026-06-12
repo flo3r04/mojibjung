@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Users, GraduationCap, PenSquare, LogOut, User, LayoutDashboard, ShieldAlert, MessageSquare, Search, UserX, AlertTriangle, ShieldCheck, Calendar, Menu, Sun, Moon, ListTodo } from "lucide-react";
+import { BookOpen, Users, GraduationCap, PenSquare, LogOut, User, LayoutDashboard, ShieldAlert, MessageSquare, Search, UserX, AlertTriangle, ShieldCheck, Calendar, Menu, Sun, Moon, ListTodo, Bell } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,21 @@ export default function Navbar() {
     enabled: isAuthenticated && isVerified,
     refetchInterval: 15000,
   });
+
+  const { data: notifications = [], refetch: refetchNotifications } = trpc.notification.list.useQuery(undefined, {
+    enabled: isAuthenticated,
+    refetchInterval: 15000,
+  });
+
+  const markAsReadMutation = trpc.notification.markAsRead.useMutation({
+    onSuccess: () => refetchNotifications(),
+  });
+
+  const markAllAsReadMutation = trpc.notification.markAllAsRead.useMutation({
+    onSuccess: () => refetchNotifications(),
+  });
+
+  const unreadNotifCount = notifications.filter(n => n.isRead === 0).length;
 
   const withdrawMutation = trpc.auth.withdraw.useMutation({
     onSuccess: () => {
@@ -124,6 +139,79 @@ export default function Navbar() {
                     ) : null}
                   </Button>
                 </Link>
+
+                {/* [실시간 알림 벨 버튼] */}
+                <DropdownMenu onOpenChange={(open) => {
+                  if (open && unreadNotifCount > 0) {
+                    markAllAsReadMutation.mutate();
+                  }
+                }}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer relative">
+                      <Bell className="w-4.5 h-4.5" />
+                      {unreadNotifCount > 0 ? (
+                        <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] bg-destructive text-white text-[9px] font-black rounded-full flex items-center justify-center border border-card px-0.5 shadow-sm animate-pulse">
+                          {unreadNotifCount > 99 ? "99+" : unreadNotifCount}
+                        </span>
+                      ) : null}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  
+                  <DropdownMenuContent align="end" className="w-80 p-2 rounded-2xl border border-border/50 shadow-xl bg-card/95 backdrop-blur-md max-h-[350px] overflow-y-auto">
+                    <div className="flex items-center justify-between px-2 py-1.5 border-b border-border/40 select-none mb-1">
+                      <span className="font-black text-xs text-foreground flex items-center gap-1">
+                        🔔 알림 센터
+                      </span>
+                      {unreadNotifCount > 0 && (
+                        <button
+                          onClick={() => markAllAsReadMutation.mutate()}
+                          className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                        >
+                          모두 읽음
+                        </button>
+                      )}
+                    </div>
+                    {notifications.length === 0 ? (
+                      <div className="py-8 text-center text-xs font-bold text-muted-foreground/60">
+                        수신된 알림이 없습니다.
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        {notifications.map((notif) => (
+                          <DropdownMenuItem
+                            key={notif.id}
+                            asChild
+                            className={`p-2 rounded-xl text-xs flex flex-col items-start gap-1 cursor-pointer transition-all ${
+                              notif.isRead === 0 ? "bg-primary/5 hover:bg-primary/10 font-bold" : "text-muted-foreground"
+                            }`}
+                          >
+                            <Link 
+                              href={notif.link || "#"}
+                              onClick={() => {
+                                if (notif.isRead === 0) {
+                                  markAsReadMutation.mutate({ id: notif.id });
+                                }
+                              }}
+                              className="w-full flex flex-col items-start"
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <span className={`text-[11px] font-black ${notif.isRead === 0 ? "text-primary" : "text-muted-foreground"}`}>
+                                  {notif.title}
+                                </span>
+                                <span className="text-[9px] font-medium text-muted-foreground/80">
+                                  {new Date(notif.createdAt).toLocaleDateString("ko-KR")}
+                                </span>
+                              </div>
+                              <p className="text-[10px] leading-relaxed text-left text-muted-foreground/80 truncate w-full mt-0.5">
+                                {notif.content}
+                              </p>
+                            </Link>
+                          </DropdownMenuItem>
+                        ))}
+                      </div>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
                 {/* [사용자 프로필 드롭다운 메뉴] */}
                 <DropdownMenu>

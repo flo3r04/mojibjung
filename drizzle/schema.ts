@@ -408,6 +408,7 @@ export const groups = pgTable("groups", {
   name: varchar("name", { length: 100 }).notNull(),
   leaderId: integer("leaderId").notNull(), // 리더 사용자의 ID
   accessKey: varchar("accessKey", { length: 64 }).notNull().unique(), // 그룹 전용 입장 고유 키
+  isArchived: integer("isArchived").default(0).notNull(), // 0: 활성, 1: 아카이브 완료
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
@@ -472,3 +473,59 @@ export const groupChatMessages = pgTable("group_chat_messages", {
 
 export type GroupChatMessage = typeof groupChatMessages.$inferSelect;
 export type InsertGroupChatMessage = typeof groupChatMessages.$inferInsert;
+
+// ============================================================================
+// 알림 (Notifications)
+// ============================================================================
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
+  type: varchar("type", { length: 30 }).notNull(),
+  title: varchar("title", { length: 200 }).notNull(),
+  content: text("content").notNull(),
+  isRead: integer("isRead").default(0).notNull(),
+  link: varchar("link", { length: 255 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("notifications_userId_idx").on(table.userId)
+]);
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;
+
+// ============================================================================
+// 그룹 자료실 파일 (Group Files)
+// ============================================================================
+export const groupFiles = pgTable("group_files", {
+  id: serial("id").primaryKey(),
+  groupId: integer("groupId").notNull(),
+  uploaderId: integer("uploaderId").notNull(),
+  fileName: varchar("fileName", { length: 255 }).notNull(),
+  fileSize: integer("fileSize").notNull(),
+  fileType: varchar("fileType", { length: 100 }).notNull(),
+  fileUrl: text("fileUrl").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => [
+  index("group_files_groupId_idx").on(table.groupId)
+]);
+
+export type GroupFile = typeof groupFiles.$inferSelect;
+export type InsertGroupFile = typeof groupFiles.$inferInsert;
+
+// ============================================================================
+// 그룹 아카이브/포트폴리오 (Group Archives)
+// ============================================================================
+export const groupArchives = pgTable("group_archives", {
+  id: serial("id").primaryKey(),
+  groupId: integer("groupId").notNull().unique(),
+  title: varchar("title", { length: 200 }).notNull(),
+  summary: varchar("summary", { length: 500 }).notNull(),
+  content: text("content").notNull(),
+  memberCount: integer("memberCount").notNull(),
+  period: varchar("period", { length: 100 }).notNull(),
+  imageUrl: text("imageUrl"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type GroupArchive = typeof groupArchives.$inferSelect;
+export type InsertGroupArchive = typeof groupArchives.$inferInsert;

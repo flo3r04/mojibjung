@@ -68,6 +68,12 @@ import {
   EmailVerification,
   InsertEmailVerification,
   refreshTokens,
+  notifications,
+  InsertNotification,
+  groupFiles,
+  InsertGroupFile,
+  groupArchives,
+  InsertGroupArchive,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -174,6 +180,73 @@ export async function getDb() {
           console.log("[Database] calendar_todos 테이블 DDL 싱크 완료");
         } catch (todoError) {
           console.error("[Database] calendar_todos 테이블 생성 실패:", todoError);
+        }
+
+        // 5-b. notifications 테이블 생성
+        try {
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "notifications" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "userId" integer NOT NULL,
+              "type" varchar(30) NOT NULL,
+              "title" varchar(200) NOT NULL,
+              "content" text NOT NULL,
+              "isRead" integer DEFAULT 0 NOT NULL,
+              "link" varchar(255),
+              "createdAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+          await _db!.execute(sql`
+            CREATE INDEX IF NOT EXISTS "notifications_userId_idx" ON "notifications" ("userId");
+          `);
+          console.log("[Database] notifications 테이블 DDL 싱크 완료");
+        } catch (notifError) {
+          console.error("[Database] notifications 테이블 생성 실패:", notifError);
+        }
+
+        // 5-c. group_files 테이블 생성
+        try {
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "group_files" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "groupId" integer NOT NULL,
+              "uploaderId" integer NOT NULL,
+              "fileName" varchar(255) NOT NULL,
+              "fileSize" integer NOT NULL,
+              "fileType" varchar(100) NOT NULL,
+              "fileUrl" text NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+          await _db!.execute(sql`
+            CREATE INDEX IF NOT EXISTS "group_files_groupId_idx" ON "group_files" ("groupId");
+          `);
+          console.log("[Database] group_files 테이블 DDL 싱크 완료");
+        } catch (fileError) {
+          console.error("[Database] group_files 테이블 생성 실패:", fileError);
+        }
+
+        // 5-d. groups 테이블에 isArchived 컬럼 추가 및 group_archives 테이블 생성
+        try {
+          await _db!.execute(sql`
+            ALTER TABLE "groups" ADD COLUMN IF NOT EXISTS "isArchived" integer DEFAULT 0 NOT NULL;
+          `);
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "group_archives" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "groupId" integer NOT NULL UNIQUE,
+              "title" varchar(200) NOT NULL,
+              "summary" varchar(500) NOT NULL,
+              "content" text NOT NULL,
+              "memberCount" integer NOT NULL,
+              "period" varchar(100) NOT NULL,
+              "imageUrl" text,
+              "createdAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+          console.log("[Database] group 아카이브 관련 DDL 싱크 완료");
+        } catch (archiveError) {
+          console.error("[Database] group 아카이브 관련 DDL 싱크 실패:", archiveError);
         }
 
         // 6. 학사일정 및 공휴일 자동 시딩
@@ -2369,4 +2442,180 @@ export async function createGroupChatMessage(data: InsertGroupChatMessage) {
   if (!db) throw new Error("DB 사용 불가능");
   const result = await db.insert(groupChatMessages).values(data).returning();
   return result[0];
+}
+
+// ============================================================================
+// [신규] 실시간 알림 관련 DB 함수
+// ============================================================================
+
+export async function createNotification(data: InsertNotification) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.insert(notifications).values(data).returning();
+  return result[0];
+}
+
+export async function getUserNotifications(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(notifications)
+    .where(eq(notifications.userId, userId))
+    .orderBy(desc(notifications.createdAt))
+    .limit(50);
+}
+
+export async function markNotificationAsRead(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .update(notifications)
+    .set({ isRead: 1 })
+    .where(and(eq(notifications.id, id), eq(notifications.userId, userId)))
+    .returning();
+  return result[0];
+}
+
+export async function markAllNotificationsAsRead(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .update(notifications)
+    .set({ isRead: 1 })
+    .where(eq(notifications.userId, userId))
+    .returning();
+  return result;
+}
+
+// ============================================================================
+// [신규] 그룹 자료실 관련 DB 함수
+// ============================================================================
+
+export async function getGroupFiles(groupId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: groupFiles.id,
+      groupId: groupFiles.groupId,
+      fileName: groupFiles.fileName,
+      fileSize: groupFiles.fileSize,
+      fileType: groupFiles.fileType,
+      fileUrl: groupFiles.fileUrl,
+      createdAt: groupFiles.createdAt,
+      uploaderId: groupFiles.uploaderId,
+      uploaderName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
+    })
+    .from(groupFiles)
+    .innerJoin(users, eq(groupFiles.uploaderId, users.id))
+    .where(eq(groupFiles.groupId, groupId))
+    .orderBy(desc(groupFiles.createdAt));
+}
+
+export async function createGroupFile(data: InsertGroupFile) {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+  const result = await db.insert(groupFiles).values(data).returning();
+  return result[0];
+}
+
+export async function deleteGroupFile(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+  await db.delete(groupFiles).where(eq(groupFiles.id, id));
+}
+
+// ============================================================================
+// [신규] 그룹 아카이빙 관련 DB 함수
+// ============================================================================
+
+export async function archiveGroup(groupId: number, leaderId: number, archiveData: { title: string; summary: string; content: string; period: string; imageUrl?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+
+  // 1. 권한 체크 (그룹장 본인인지)
+  const rows = await db.select().from(groups).where(eq(groups.id, groupId)).limit(1);
+  if (!rows[0]) throw new Error("그룹을 찾을 수 없습니다.");
+  if (rows[0].leaderId !== leaderId) throw new Error("그룹의 리더만 종료 및 아카이브할 수 있습니다.");
+
+  // 2. 그룹 인원 수 조회
+  const mCount = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(groupMembers)
+    .where(eq(groupMembers.groupId, groupId));
+  const memberCount = Number(mCount[0]?.count || 0) + 1; // 멤버들 + 리더 본인 1명 추가
+
+  // 3. 그룹 상태 변경 (isArchived = 1)
+  await db.update(groups).set({ isArchived: 1 }).where(eq(groups.id, groupId));
+
+  // 4. 아카이브 테이블에 등록
+  const result = await db
+    .insert(groupArchives)
+    .values({
+      groupId,
+      title: archiveData.title,
+      summary: archiveData.summary,
+      content: archiveData.content,
+      period: archiveData.period,
+      memberCount,
+      imageUrl: archiveData.imageUrl || null,
+    })
+    .onConflictDoUpdate({
+      target: [groupArchives.groupId],
+      set: {
+        title: archiveData.title,
+        summary: archiveData.summary,
+        content: archiveData.content,
+        period: archiveData.period,
+        memberCount,
+        imageUrl: archiveData.imageUrl || null,
+      }
+    })
+    .returning();
+
+  return result[0];
+}
+
+export async function getGroupArchives() {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select({
+      id: groupArchives.id,
+      groupId: groupArchives.groupId,
+      title: groupArchives.title,
+      summary: groupArchives.summary,
+      period: groupArchives.period,
+      memberCount: groupArchives.memberCount,
+      imageUrl: groupArchives.imageUrl,
+      createdAt: groupArchives.createdAt,
+      groupName: groups.name,
+    })
+    .from(groupArchives)
+    .innerJoin(groups, eq(groupArchives.groupId, groups.id))
+    .orderBy(desc(groupArchives.createdAt));
+}
+
+export async function getGroupArchiveDetail(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select({
+      id: groupArchives.id,
+      groupId: groupArchives.groupId,
+      title: groupArchives.title,
+      summary: groupArchives.summary,
+      content: groupArchives.content,
+      period: groupArchives.period,
+      memberCount: groupArchives.memberCount,
+      imageUrl: groupArchives.imageUrl,
+      createdAt: groupArchives.createdAt,
+      groupName: groups.name,
+    })
+    .from(groupArchives)
+    .innerJoin(groups, eq(groupArchives.groupId, groups.id))
+    .where(eq(groupArchives.id, id))
+    .limit(1);
+  return rows[0] || null;
 }
