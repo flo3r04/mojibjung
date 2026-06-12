@@ -350,14 +350,55 @@ export const calendarEvents = pgTable("calendar_events", {
   startDate: timestamp("startDate").notNull(),
   endDate: timestamp("endDate").notNull(),
   category: varchar("category", { length: 50 })
-    .$type<"academic" | "personal" | "holiday" | "group">()
+    .$type<"academic" | "personal" | "holiday" | "group" | "recruitment">()
     .notNull(),
   isPrivate: integer("isPrivate").default(0).notNull(), // 0: 공개일정, 1: 비밀일정 (운영진 열람 권한 필수)
+  hasRsvp: integer("hasRsvp").default(0).notNull(), // 0: 비활성, 1: 활성
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
 export type CalendarEvent = typeof calendarEvents.$inferSelect;
 export type InsertCalendarEvent = typeof calendarEvents.$inferInsert;
+
+// 그룹 일정 참석 여부 (RSVP)
+export const eventRsvps = pgTable("event_rsvps", {
+  id: serial("id").primaryKey(),
+  eventId: integer("eventId").notNull(),
+  userId: integer("userId").notNull(),
+  status: varchar("status", { length: 20 }).$type<"attending" | "absent" | "maybe">().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().$onUpdateFn(() => new Date()).notNull(),
+}, (table) => [
+  uniqueIndex("unique_event_rsvp").on(table.eventId, table.userId)
+]);
+
+export type EventRsvp = typeof eventRsvps.$inferSelect;
+export type InsertEventRsvp = typeof eventRsvps.$inferInsert;
+
+// 일정 카테고리별 테마 커스텀 색상
+export const userCalendarThemes = pgTable("user_calendar_themes", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
+  category: varchar("category", { length: 50 }).notNull(),
+  color: varchar("color", { length: 20 }).notNull(),
+}, (table) => [
+  uniqueIndex("unique_user_calendar_theme").on(table.userId, table.category)
+]);
+
+export type UserCalendarTheme = typeof userCalendarThemes.$inferSelect;
+export type InsertUserCalendarTheme = typeof userCalendarThemes.$inferInsert;
+
+// 캘린더 날짜별 투두(Todo)
+export const calendarTodos = pgTable("calendar_todos", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
+  date: varchar("date", { length: 10 }).notNull(), // "YYYY-MM-DD" 포맷
+  content: text("content").notNull(),
+  isCompleted: integer("isCompleted").default(0).notNull(), // 0: 미완료, 1: 완료
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type CalendarTodo = typeof calendarTodos.$inferSelect;
+export type InsertCalendarTodo = typeof calendarTodos.$inferInsert;
 
 // ============================================================================
 // 그룹 마스터 (동아리, 스터디, 프로젝트 등)

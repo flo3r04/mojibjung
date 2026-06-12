@@ -847,6 +847,7 @@ export const appRouter = router({
         endDate: e.endDate,
         category: e.category,
         isPrivate: e.isPrivate,
+        hasRsvp: e.hasRsvp,
       }));
 
       // 2. 로그인된 경우 북마크 및 신청한 모집글 마감일 자동 연동
@@ -905,6 +906,7 @@ export const appRouter = router({
               endDate: ge.event.endDate,
               category: ge.event.category, // "group" 카테고리 또는 개별 카테고리 사용 가능
               isPrivate: ge.event.isPrivate,
+              hasRsvp: ge.event.hasRsvp,
             });
           });
         } catch (err) {
@@ -961,6 +963,62 @@ export const appRouter = router({
       .input(z.object({ id: z.number() }))
       .mutation(async ({ ctx, input }) => {
         return deleteCalendarEvent(input.id, ctx.user.id);
+      }),
+
+    // 카테고리별 테마 변경
+    updateTheme: protectedVerifiedProcedure
+      .input(
+        z.object({
+          category: z.string(),
+          color: z.string(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const { updateUserCalendarTheme } = await import("./db");
+        return updateUserCalendarTheme(ctx.user.id, input.category, input.color);
+      }),
+
+    // 테마 조회
+    getThemes: protectedVerifiedProcedure.query(async ({ ctx }) => {
+      const { getUserCalendarThemes } = await import("./db");
+      return getUserCalendarThemes(ctx.user.id);
+    }),
+
+    // 투두 목록 조회
+    listTodos: protectedVerifiedProcedure
+      .input(z.object({ date: z.string() }))
+      .query(async ({ ctx, input }) => {
+        const { listCalendarTodos } = await import("./db");
+        return listCalendarTodos(ctx.user.id, input.date);
+      }),
+
+    // 투두 생성
+    createTodo: protectedVerifiedProcedure
+      .input(
+        z.object({
+          date: z.string(),
+          content: z.string().min(1, "내용을 입력해주세요.").max(200),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const { createCalendarTodo } = await import("./db");
+        return createCalendarTodo(ctx.user.id, input.date, input.content);
+      }),
+
+    // 투두 상태 토글
+    toggleTodo: protectedVerifiedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const { toggleCalendarTodo } = await import("./db");
+        return toggleCalendarTodo(input.id, ctx.user.id);
+      }),
+
+    // 투두 삭제
+    deleteTodo: protectedVerifiedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const { deleteCalendarTodo } = await import("./db");
+        return deleteCalendarTodo(input.id, ctx.user.id);
       }),
   }),
 
@@ -1286,6 +1344,7 @@ export const appRouter = router({
           startDate: z.string(),
           endDate: z.string(),
           isPrivate: z.number().default(0),
+          hasRsvp: z.number().default(0),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -1315,6 +1374,7 @@ export const appRouter = router({
           endDate: new Date(input.endDate),
           category: "group",
           isPrivate: input.isPrivate,
+          hasRsvp: input.hasRsvp,
         });
       }),
 
@@ -1329,6 +1389,7 @@ export const appRouter = router({
           startDate: z.string(),
           endDate: z.string(),
           isPrivate: z.number().default(0),
+          hasRsvp: z.number().default(0),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -1356,6 +1417,7 @@ export const appRouter = router({
           startDate: new Date(input.startDate),
           endDate: new Date(input.endDate),
           isPrivate: input.isPrivate,
+          hasRsvp: input.hasRsvp,
         });
       }),
 
@@ -1381,6 +1443,27 @@ export const appRouter = router({
           });
         }
         return deleteGroupCalendarEvent(input.id, input.groupId);
+      }),
+
+    // 그룹 일정 RSVP 제출
+    submitRsvp: protectedVerifiedProcedure
+      .input(
+        z.object({
+          eventId: z.number(),
+          status: z.enum(["attending", "absent", "maybe"]),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const { submitEventRsvp } = await import("./db");
+        return submitEventRsvp(ctx.user.id, input.eventId, input.status);
+      }),
+
+    // 그룹 일정 RSVP 현황 조회
+    getEventRsvps: protectedVerifiedProcedure
+      .input(z.object({ eventId: z.number() }))
+      .query(async ({ input }) => {
+        const { getEventRsvps } = await import("./db");
+        return getEventRsvps(input.eventId);
       }),
 
     // 내가 가입해 있거나 리더인 모든 그룹 조회 (멤버 수, 지위 명칭 포함)

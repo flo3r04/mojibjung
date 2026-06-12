@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -62,42 +62,77 @@ interface CalendarEvent {
   category: CalendarCategory;
   postId?: number;
   isPrivate?: number;
+  hasRsvp?: number;
 }
 
-const CATEGORY_CONFIG: Record<
-  CalendarCategory,
-  { label: string; dotClass: string; badgeClass: string; textClass: string }
+const THEME_COLORS: Record<
+  string,
+  { bg: string; text: string; border: string; darkBg: string; darkText: string; darkBorder: string; badge: string; dot: string }
 > = {
-  academic: {
-    label: "학사일정",
-    dotClass: "bg-sky-400 shadow-sky-400/50",
-    badgeClass: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/60",
-    textClass: "text-sky-700 dark:text-sky-300",
+  sky: {
+    bg: "bg-sky-50/70", text: "text-sky-700", border: "border-sky-150",
+    darkBg: "dark:bg-sky-950/30", darkText: "dark:text-sky-300", darkBorder: "dark:border-sky-900/50",
+    badge: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/60",
+    dot: "bg-sky-400 shadow-sky-400/50"
   },
-  holiday: {
-    label: "공휴일",
-    dotClass: "bg-red-400 shadow-red-400/50",
-    badgeClass: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/60",
-    textClass: "text-red-700 dark:text-red-300",
+  red: {
+    bg: "bg-red-50/70", text: "text-red-700", border: "border-red-150",
+    darkBg: "dark:bg-red-950/30", darkText: "dark:text-red-300", darkBorder: "dark:border-red-900/50",
+    badge: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/60",
+    dot: "bg-red-400 shadow-red-400/50"
   },
-  recruitment: {
-    label: "모집 마감일",
-    dotClass: "bg-rose-400 shadow-rose-400/50",
-    badgeClass: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/60",
-    textClass: "text-rose-700 dark:text-rose-300",
+  rose: {
+    bg: "bg-rose-50/70", text: "text-rose-700", border: "border-rose-150",
+    darkBg: "dark:bg-rose-950/30", darkText: "dark:text-rose-300", darkBorder: "dark:border-rose-900/50",
+    badge: "bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/60",
+    dot: "bg-rose-400 shadow-rose-400/50"
   },
-  personal: {
-    label: "개인 일정",
-    dotClass: "bg-indigo-400 shadow-indigo-400/50",
-    badgeClass: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900/60",
-    textClass: "text-indigo-700 dark:text-indigo-300",
+  indigo: {
+    bg: "bg-indigo-50/70", text: "text-indigo-700", border: "border-indigo-150",
+    darkBg: "dark:bg-indigo-950/30", darkText: "dark:text-indigo-300", darkBorder: "dark:border-indigo-900/50",
+    badge: "bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-900/60",
+    dot: "bg-indigo-400 shadow-indigo-400/50"
   },
-  group: {
-    label: "그룹 일정",
-    dotClass: "bg-emerald-400 shadow-emerald-400/50",
-    badgeClass: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-350 dark:border-emerald-900/60",
-    textClass: "text-emerald-700 dark:text-emerald-350",
+  emerald: {
+    bg: "bg-emerald-50/70", text: "text-emerald-700", border: "border-emerald-150",
+    darkBg: "dark:bg-emerald-950/30", darkText: "dark:text-emerald-300", darkBorder: "dark:border-emerald-900/50",
+    badge: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60",
+    dot: "bg-emerald-400 shadow-emerald-400/50"
   },
+  amber: {
+    bg: "bg-amber-50/70", text: "text-amber-700", border: "border-amber-150",
+    darkBg: "dark:bg-amber-950/30", darkText: "dark:text-amber-300", darkBorder: "dark:border-amber-900/50",
+    badge: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60",
+    dot: "bg-amber-400 shadow-amber-400/50"
+  },
+  violet: {
+    bg: "bg-violet-50/70", text: "text-violet-700", border: "border-violet-150",
+    darkBg: "dark:bg-violet-950/30", darkText: "dark:text-violet-300", darkBorder: "dark:border-violet-900/50",
+    badge: "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-900/60",
+    dot: "bg-violet-400 shadow-violet-400/50"
+  },
+  orange: {
+    bg: "bg-orange-50/70", text: "text-orange-700", border: "border-orange-150",
+    darkBg: "dark:bg-orange-950/30", darkText: "dark:text-orange-300", darkBorder: "dark:border-orange-900/50",
+    badge: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-950/40 dark:text-orange-300 dark:border-orange-900/60",
+    dot: "bg-orange-400 shadow-orange-400/50"
+  },
+};
+
+const DEFAULT_CATEGORY_COLORS: Record<CalendarCategory, string> = {
+  academic: "sky",
+  holiday: "red",
+  recruitment: "rose",
+  personal: "indigo",
+  group: "emerald",
+};
+
+const CATEGORY_LABELS: Record<CalendarCategory, string> = {
+  academic: "학사일정",
+  holiday: "공휴일",
+  recruitment: "모집 마감일",
+  personal: "개인 일정",
+  group: "그룹 일정",
 };
 
 export default function CalendarPage() {
@@ -117,26 +152,120 @@ export default function CalendarPage() {
   const [newDescription, setNewDescription] = useState("");
   const [newStartDate, setNewStartDate] = useState("");
   const [newEndDate, setNewEndDate] = useState("");
-  
-  // 수정 폼 상태
+  const [newCategory, setNewCategory] = useState<CalendarCategory>("personal");
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editStartDate, setEditStartDate] = useState("");
   const [editEndDate, setEditEndDate] = useState("");
   const [isEditing, setIsEditing] = useState(false);
-
-  // 그룹 일정 관련 추가 상태
-  const [newCategory, setNewCategory] = useState<"personal" | "group">("personal");
   const [newGroupId, setNewGroupId] = useState<number | null>(null);
   const [newIsPrivate, setNewIsPrivate] = useState(false);
   const [editIsPrivate, setEditIsPrivate] = useState(false);
+  const [newHasRsvp, setNewHasRsvp] = useState(false);
+  const [editHasRsvp, setEditHasRsvp] = useState(false);
   const [accessKey, setAccessKey] = useState("");
   const [isGroupSectionExpanded, setIsGroupSectionExpanded] = useState(false);
+  const [isThemeOpen, setIsThemeOpen] = useState(false);
+  const [todoContent, setTodoContent] = useState("");
 
   // tRPC 쿼리 및 뮤테이션
-  const { data: events = [], isLoading, refetch } = trpc.calendar.list.useQuery(undefined, {
+  const { data: rawEvents = [], isLoading, refetch } = trpc.calendar.list.useQuery(undefined, {
     enabled: isAuthenticated,
   });
+
+  // 카테고리 테마 색상 쿼리 및 뮤테이션
+  const { data: userThemes = [], refetch: refetchThemes } = trpc.calendar.getThemes.useQuery(undefined, {
+    enabled: isAuthenticated,
+  });
+
+  const updateThemeMutation = trpc.calendar.updateTheme.useMutation({
+    onSuccess: () => {
+      toast.success("캘린더 카테고리 색상이 업데이트되었습니다.");
+      refetchThemes();
+      refetch();
+    },
+    onError: (err) => {
+      toast.error(err.message || "색상 설정 변경 실패");
+    },
+  });
+
+  const getCategoryStyle = (category: CalendarCategory) => {
+    const customTheme = userThemes.find((t) => t.category === category);
+    const colorKey = customTheme?.color || DEFAULT_CATEGORY_COLORS[category];
+    return THEME_COLORS[colorKey] || THEME_COLORS[DEFAULT_CATEGORY_COLORS[category]];
+  };
+
+  // 투두 리스트 쿼리 및 뮤테이션
+  const todoDateStr = format(selectedDate, "yyyy-MM-dd");
+  const { data: todos = [], refetch: refetchTodos } = trpc.calendar.listTodos.useQuery(
+    { date: todoDateStr },
+    { enabled: isAuthenticated }
+  );
+
+  const createTodoMutation = trpc.calendar.createTodo.useMutation({
+    onSuccess: () => {
+      setTodoContent("");
+      refetchTodos();
+    },
+    onError: (err) => {
+      toast.error(err.message || "할 일 등록 실패");
+    },
+  });
+
+  const toggleTodoMutation = trpc.calendar.toggleTodo.useMutation({
+    onSuccess: () => {
+      refetchTodos();
+    },
+    onError: (err) => {
+      toast.error(err.message || "상태 변경 실패");
+    },
+  });
+
+  const deleteTodoMutation = trpc.calendar.deleteTodo.useMutation({
+    onSuccess: () => {
+      refetchTodos();
+    },
+    onError: (err) => {
+      toast.error(err.message || "할 일 삭제 실패");
+    },
+  });
+
+  // 특정 그룹 일정 RSVP 현황 조회
+  const { data: rsvps = [], refetch: refetchRsvps } = trpc.group.getEventRsvps.useQuery(
+    { eventId: selectedEvent?.dbId || 0 },
+    { enabled: !!selectedEvent && selectedEvent.category === "group" && selectedEvent.hasRsvp === 1 }
+  );
+
+  const submitRsvpMutation = trpc.group.submitRsvp.useMutation({
+    onSuccess: () => {
+      toast.success("참석 응답이 등록되었습니다.");
+      refetchRsvps();
+    },
+    onError: (err) => {
+      toast.error(err.message || "응답 제출 실패");
+    },
+  });
+
+  const localDateFromUTC = (dateInput: Date | string) => {
+    const d = typeof dateInput === "string" ? new Date(dateInput) : dateInput;
+    if (isNaN(d.getTime())) return d;
+    return new Date(
+      d.getUTCFullYear(),
+      d.getUTCMonth(),
+      d.getUTCDate(),
+      d.getUTCHours(),
+      d.getUTCMinutes(),
+      d.getUTCSeconds()
+    );
+  };
+
+  const events = useMemo(() => {
+    return rawEvents.map((e) => ({
+      ...e,
+      startDate: localDateFromUTC(e.startDate),
+      endDate: localDateFromUTC(e.endDate),
+    }));
+  }, [rawEvents]);
 
   const utils = trpc.useUtils();
 
@@ -275,6 +404,7 @@ export default function CalendarPage() {
     setNewStartDate(format(new Date(), "yyyy-MM-dd"));
     setNewEndDate(format(new Date(), "yyyy-MM-dd"));
     setNewIsPrivate(false);
+    setNewHasRsvp(false);
   };
 
   const handleDayClick = (date: Date) => {
@@ -305,6 +435,7 @@ export default function CalendarPage() {
         startDate: newStartDate,
         endDate: newEndDate,
         isPrivate: newIsPrivate ? 1 : 0,
+        hasRsvp: newHasRsvp ? 1 : 0,
       });
     } else {
       createMutation.mutate({
@@ -333,6 +464,7 @@ export default function CalendarPage() {
         startDate: editStartDate,
         endDate: editEndDate,
         isPrivate: editIsPrivate ? 1 : 0,
+        hasRsvp: editHasRsvp ? 1 : 0,
       });
     } else {
       updateMutation.mutate({
@@ -367,6 +499,7 @@ export default function CalendarPage() {
     setEditStartDate(format(new Date(selectedEvent.startDate), "yyyy-MM-dd"));
     setEditEndDate(format(new Date(selectedEvent.endDate), "yyyy-MM-dd"));
     setEditIsPrivate(selectedEvent.isPrivate === 1);
+    setEditHasRsvp(selectedEvent.hasRsvp === 1);
     setIsEditing(true);
   };
 
@@ -481,14 +614,6 @@ export default function CalendarPage() {
 
     const isSelected = modifiers.selected;
 
-    const barColors: Record<CalendarCategory, string> = {
-      academic: "bg-sky-50 text-sky-700 border-sky-150 dark:bg-sky-950/30 dark:text-sky-300 dark:border-sky-900/50",
-      holiday: "bg-red-50 text-red-750 border-red-150 dark:bg-red-950/30 dark:text-red-300 dark:border-red-900/50",
-      recruitment: "bg-rose-50 text-rose-750 border-rose-150 dark:bg-rose-950/30 dark:text-rose-300 dark:border-rose-900/50",
-      personal: "bg-indigo-50 text-indigo-750 border-indigo-150 dark:bg-indigo-950/30 dark:text-indigo-300 dark:border-indigo-900/50",
-      group: "bg-emerald-50 text-slate-950 font-bold border-emerald-150 dark:bg-emerald-950/30 dark:text-emerald-50 dark:border-emerald-900/50",
-    };
-
     const { eventToLane, lanes } = getWeekEventLanes(day.date);
 
     // 이번 주에 등록된 이벤트 중 최대 차지하는 라인 인덱스 구하기
@@ -508,7 +633,8 @@ export default function CalendarPage() {
         });
 
         if (laneEvent) {
-          const barClass = barColors[laneEvent.category];
+          const style = getCategoryStyle(laneEvent.category);
+          const barClass = `${style.bg} ${style.text} ${style.border} ${style.darkBg} ${style.darkText} ${style.darkBorder}`;
           const eventStart = startOfDay(new Date(laneEvent.startDate));
           const eventEnd = endOfDay(new Date(laneEvent.endDate));
 
@@ -517,8 +643,8 @@ export default function CalendarPage() {
           const continuesPrev = !isSunday && eventStart < startOfDay(day.date);
 
           // 캘린더 전체 표시 범위와 이벤트 기간의 교집합을 구해, 교집합의 정중앙 날짜에 딱 1번만 텍스트 노출
-          const targetMonth = day.date.getMonth();
-          const targetYear = day.date.getFullYear();
+          const targetMonth = selectedDate.getMonth();
+          const targetYear = selectedDate.getFullYear();
           const firstDayOfMonth = new Date(targetYear, targetMonth, 1);
           const lastDayOfMonth = new Date(targetYear, targetMonth + 1, 0);
           
@@ -546,7 +672,7 @@ export default function CalendarPage() {
                 setIsDetailOpen(true);
               }}
               className={cn(
-                "text-[10px] font-bold px-1 py-0.5 border leading-tight transition-all duration-150 hover:brightness-95 min-h-[20px] h-auto flex items-center select-none cursor-pointer text-left justify-start",
+                "text-[10px] font-bold px-1 py-0.5 border leading-tight transition-all duration-150 hover:brightness-95 h-5 flex items-center select-none cursor-pointer text-left justify-start overflow-hidden",
                 barClass,
                 continuesPrev ? "rounded-l-none ml-[-7px] pl-0 border-l-0" : "rounded-l-md",
                 continuesNext ? "rounded-r-none mr-[-7px] pr-0 border-r-0" : "rounded-r-md"
@@ -554,11 +680,11 @@ export default function CalendarPage() {
               title={laneEvent.title}
             >
               {shouldShowText ? (
-                <span className="w-full text-left flex items-start justify-start flex-wrap gap-0.5 break-all whitespace-normal px-0.5">
+                <span className="w-full text-left flex items-center justify-start gap-0.5 min-w-0 px-0.5">
                   {laneEvent.category === "group" && laneEvent.isPrivate === 1 && (
                     <Lock className="w-2.5 h-2.5 inline shrink-0 text-amber-600 mt-0.5" />
                   )}
-                  <span>{laneEvent.title}</span>
+                  <span className="truncate block flex-1">{laneEvent.title}</span>
                 </span>
               ) : (
                 <span className="opacity-0 select-none">&nbsp;</span>
@@ -678,9 +804,22 @@ export default function CalendarPage() {
                   날짜를 선택해 상세 일정을 확인하거나 개인 일정을 등록해보세요.
                 </p>
               </div>
-              <Badge variant="outline" className="font-bold border-sky-200 bg-sky-50 text-sky-700 dark:bg-sky-950/20 dark:text-sky-300 dark:border-sky-850 px-3 py-1">
-                {format(selectedDate, "yyyy년 MM월 dd일", { locale: ko })}
-              </Badge>
+              <div className="flex items-center gap-2">
+                {isAuthenticated && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsThemeOpen(true)}
+                    className="h-8 px-2.5 rounded-xl border border-border/60 hover:bg-muted/40 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Tag className="w-3.5 h-3.5 text-primary" />
+                    색상 설정
+                  </Button>
+                )}
+                <Badge variant="outline" className="font-bold border-sky-200 bg-sky-50 text-sky-700 dark:bg-sky-950/20 dark:text-sky-300 dark:border-sky-850 px-3 py-1">
+                  {format(selectedDate, "yyyy년 MM월 dd일", { locale: ko })}
+                </Badge>
+              </div>
             </div>
 
             <div className="w-full flex justify-center">
@@ -714,23 +853,23 @@ export default function CalendarPage() {
             {/* 하단 범례 */}
             <div className="flex flex-wrap gap-6 mt-6 pt-4 border-t border-border/60 justify-center text-xs font-semibold text-muted-foreground">
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-red-400" />
+                <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("holiday").dot)} />
                 <span>공휴일 / 일요일</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-sky-400" />
+                <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("academic").dot)} />
                 <span>학사일정</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-rose-400" />
+                <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("recruitment").dot)} />
                 <span>모집 마감일</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-indigo-400" />
+                <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("personal").dot)} />
                 <span>개인 일정</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-emerald-400" />
+                <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("group").dot)} />
                 <span>그룹 일정</span>
               </div>
             </div>
@@ -760,7 +899,8 @@ export default function CalendarPage() {
                 ) : (
                   <div className="space-y-2">
                     {selectedDateEvents.map((event) => {
-                      const config = CATEGORY_CONFIG[event.category];
+                      const style = getCategoryStyle(event.category);
+                      const label = CATEGORY_LABELS[event.category];
                       return (
                         <div
                           key={event.id}
@@ -771,12 +911,12 @@ export default function CalendarPage() {
                           }}
                           className={cn(
                             "p-3 rounded-xl border transition-all cursor-pointer hover:translate-x-1 flex flex-col gap-1.5",
-                            config.badgeClass
+                            style.badge
                           )}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-1.5">
-                              <span className="font-bold text-xs">{config.label}</span>
+                              <span className="font-bold text-xs">{label}</span>
                               {event.category === "group" && (
                                 event.isPrivate === 1 ? (
                                   <span className="bg-amber-100/60 border border-amber-250 text-amber-800 text-[9px] font-black px-1.5 py-0.5 rounded-md flex items-center gap-0.5 select-none shrink-0 scale-95 origin-left">
@@ -806,6 +946,100 @@ export default function CalendarPage() {
                 )}
               </div>
             </div>
+
+            {/* 투두(Todo) 위젯 */}
+            {isAuthenticated && (
+              <div className="bg-card/65 backdrop-blur-md rounded-3xl border border-border p-6 shadow-md">
+                <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-3">
+                  <h2 className="text-md font-black text-foreground flex items-center gap-2">
+                    <CalendarCheck className="w-4.5 h-4.5 text-primary" />
+                    {format(selectedDate, "M월 d일")} 할 일
+                  </h2>
+                  <Badge variant="secondary" className="font-bold text-[10px] px-2 py-0.5 rounded-full">
+                    {todos.filter(t => t.isCompleted === 1).length}/{todos.length} 완료
+                  </Badge>
+                </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!todoContent.trim()) return;
+                    createTodoMutation.mutate({
+                      date: todoDateStr,
+                      content: todoContent.trim(),
+                    });
+                  }}
+                  className="flex gap-2 mb-3"
+                >
+                  <Input
+                    placeholder="오늘 할 일을 추가해보세요..."
+                    value={todoContent}
+                    onChange={(e) => setTodoContent(e.target.value)}
+                    className="h-9 text-xs rounded-xl bg-card border-border"
+                    maxLength={150}
+                  />
+                  <Button
+                    type="submit"
+                    size="sm"
+                    className="h-9 px-3 rounded-xl font-bold bg-primary text-primary-foreground shrink-0 cursor-pointer text-xs"
+                    disabled={createTodoMutation.isPending}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                  </Button>
+                </form>
+
+                <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+                  {todos.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground/60 text-xs font-semibold">
+                      할 일이 아직 등록되지 않았습니다.
+                    </div>
+                  ) : (
+                    todos.map((todo) => (
+                      <div
+                        key={todo.id}
+                        className="group flex items-center justify-between p-2 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-all text-xs"
+                      >
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <button
+                            type="button"
+                            onClick={() => toggleTodoMutation.mutate({ id: todo.id })}
+                            className="text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
+                          >
+                            {todo.isCompleted === 1 ? (
+                              <CheckCircle className="w-4 h-4 text-emerald-500 fill-emerald-500/10" />
+                            ) : (
+                              <div className="w-4 h-4 rounded-full border border-muted-foreground/60 hover:border-primary" />
+                            )}
+                          </button>
+                          <span
+                            className={cn(
+                              "truncate font-medium transition-all select-none cursor-pointer text-left",
+                              todo.isCompleted === 1
+                                ? "line-through text-muted-foreground/50 font-normal"
+                                : "text-foreground"
+                            )}
+                            onClick={() => toggleTodoMutation.mutate({ id: todo.id })}
+                          >
+                            {todo.content}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (confirm("이 할 일을 삭제하시겠습니까?")) {
+                              deleteTodoMutation.mutate({ id: todo.id });
+                            }
+                          }}
+                          className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-all p-1 text-muted-foreground shrink-0 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* 2. 전체 어젠다 리스트 */}
             <div className="bg-card/65 backdrop-blur-md rounded-3xl border border-border p-6 shadow-md flex-1 flex flex-col lg:min-h-0 min-h-[300px]">
@@ -853,7 +1087,8 @@ export default function CalendarPage() {
                   </div>
                 ) : (
                   filteredAgendaEvents.map((event) => {
-                    const config = CATEGORY_CONFIG[event.category as CalendarCategory];
+                    const style = getCategoryStyle(event.category as CalendarCategory);
+                    const label = CATEGORY_LABELS[event.category as CalendarCategory];
                     const sDate = new Date(event.startDate);
                     const eDate = new Date(event.endDate);
                     
@@ -879,13 +1114,13 @@ export default function CalendarPage() {
                         }}
                         className={cn(
                           "p-3 rounded-xl border transition-all cursor-pointer hover:shadow-sm hover:translate-x-1 flex items-center justify-between gap-4",
-                          config.badgeClass
+                          style.badge
                         )}
                       >
                         <div className="min-w-0 flex-1 flex flex-col gap-0.5">
                           <div className="flex items-center gap-2 mb-0.5">
                             <span className="text-[10px] font-black uppercase tracking-wider opacity-85">
-                              {config.label}
+                              {label}
                             </span>
                             {event.category === "group" && (
                               event.isPrivate === 1 ? (
@@ -910,11 +1145,9 @@ export default function CalendarPage() {
 
                         <Badge
                           className={cn(
-                            "font-black text-xs px-2.5 py-0.5 rounded-full shrink-0 border",
-                            event.category === "holiday" ? "bg-red-100 text-red-700 border-red-200" :
-                            event.category === "recruitment" ? "bg-rose-100 text-rose-700 border-rose-200" :
-                            event.category === "academic" ? "bg-sky-100 text-sky-700 border-sky-200" :
-                            "bg-indigo-100 text-indigo-700 border-indigo-200"
+                            "font-black text-xs px-2.5 py-0.5 rounded-full shrink-0 border bg-background/80 dark:bg-background/40",
+                            style.text,
+                            style.border
                           )}
                         >
                           {dDayStr}
@@ -1155,6 +1388,20 @@ export default function CalendarPage() {
                           </div>
                         );
                       })()}
+
+                      {/* RSVP 참석 여부 조사 토글 */}
+                      <div className="flex items-center justify-between p-3 py-2.5 bg-emerald-50/20 border border-emerald-250/20 rounded-xl mt-2.5 font-sans">
+                        <div className="flex items-start gap-2.5">
+                          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <div className="text-left">
+                            <span className="text-[11px] font-black text-emerald-800 dark:text-emerald-300">참석 여부 조사 활성화</span>
+                            <p className="text-[9px] font-semibold text-emerald-700/70 dark:text-emerald-400/70 mt-0.5 leading-snug">
+                              단원들이 일정 카드에서 참석 / 불참 / 보류를 투표할 수 있습니다.
+                            </p>
+                          </div>
+                        </div>
+                        <Switch checked={newHasRsvp} onCheckedChange={setNewHasRsvp} className="shrink-0" />
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1236,8 +1483,8 @@ export default function CalendarPage() {
                       <DialogHeader className="border-b border-border/40 pb-3">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
-                            <Badge className={cn("font-bold text-xs", CATEGORY_CONFIG[selectedEvent.category].badgeClass)}>
-                              {CATEGORY_CONFIG[selectedEvent.category].label}
+                            <Badge className={cn("font-bold text-xs", getCategoryStyle(selectedEvent.category).badge)}>
+                              {CATEGORY_LABELS[selectedEvent.category]}
                             </Badge>
                             {selectedEvent.isPrivate === 1 && (
                               <Badge variant="outline" className="bg-amber-100/50 border-amber-300 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded flex items-center gap-1 select-none shrink-0">
@@ -1274,6 +1521,110 @@ export default function CalendarPage() {
                                 <ExternalLink className="w-4 h-4 ml-auto" />
                               </Button>
                             </Link>
+                          </div>
+                        )}
+
+                        {/* RSVP 참석 여부 투표 및 현황 */}
+                        {selectedEvent.category === "group" && selectedEvent.hasRsvp === 1 && (
+                          <div className="pt-3 border-t border-border/40 mt-3 space-y-4 font-sans text-left">
+                            <div>
+                              <h4 className="text-xs font-black text-foreground mb-2 flex items-center gap-1.5">
+                                <Users className="w-3.5 h-3.5 text-emerald-500" />
+                                참석 여부 투표
+                              </h4>
+                              
+                              <div className="flex gap-2">
+                                {[
+                                  { status: "attending", label: "참석", color: "bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-500", inactive: "bg-muted/40 hover:bg-emerald-50 text-muted-foreground border-border hover:text-emerald-600 hover:border-emerald-250 dark:hover:bg-emerald-950/20" },
+                                  { status: "absent", label: "불참", color: "bg-rose-500 hover:bg-rose-600 text-white border-rose-500", inactive: "bg-muted/40 hover:bg-rose-50 text-muted-foreground border-border hover:text-rose-600 hover:border-rose-250 dark:hover:bg-rose-950/20" },
+                                  { status: "maybe", label: "보류", color: "bg-amber-500 hover:bg-amber-600 text-white border-amber-500", inactive: "bg-muted/40 hover:bg-amber-50 text-muted-foreground border-border hover:text-amber-600 hover:border-amber-250 dark:hover:bg-amber-950/20" },
+                                ].map((btn) => {
+                                  const myRsvp = rsvps.find((r) => r.userId === user?.id);
+                                  const isSelected = myRsvp?.status === btn.status;
+                                  return (
+                                    <Button
+                                      key={btn.status}
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => submitRsvpMutation.mutate({
+                                        eventId: selectedEvent.dbId || 0,
+                                        status: btn.status as "attending" | "absent" | "maybe"
+                                      })}
+                                      className={cn(
+                                        "flex-1 rounded-xl font-bold text-xs h-9 transition-all cursor-pointer border",
+                                        isSelected ? btn.color : btn.inactive
+                                      )}
+                                      disabled={submitRsvpMutation.isPending}
+                                    >
+                                      {btn.label}
+                                    </Button>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="bg-muted/30 rounded-xl border border-border/30 p-3 space-y-2">
+                              <div className="flex justify-between text-[11px] font-black text-muted-foreground">
+                                <span>참석 현황 요약</span>
+                                <span>총 {rsvps.length}명 응답</span>
+                              </div>
+                              <div className="flex gap-3 text-xs font-bold text-foreground">
+                                <div className="flex items-center gap-1">
+                                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                  <span>참석 {rsvps.filter(r => r.status === "attending").length}명</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="w-2 h-2 rounded-full bg-rose-500" />
+                                  <span>불참 {rsvps.filter(r => r.status === "absent").length}명</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                  <span>보류 {rsvps.filter(r => r.status === "maybe").length}명</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 리더 전용 명단 */}
+                            {(() => {
+                              const isGroupLeader = myJoinedGroups.some(
+                                (g) => g.id === selectedEvent?.groupId && g.isLeader
+                              ) || user?.role === "admin";
+                              
+                              if (!isGroupLeader) return null;
+
+                              const attendingList = rsvps.filter(r => r.status === "attending");
+                              const absentList = rsvps.filter(r => r.status === "absent");
+                              const maybeList = rsvps.filter(r => r.status === "maybe");
+
+                              return (
+                                <div className="bg-emerald-500/5 dark:bg-emerald-950/10 border border-emerald-500/10 rounded-xl p-3 space-y-2 text-left">
+                                  <div className="text-[10px] font-black text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">
+                                    리더 권한: 상세 명단
+                                  </div>
+                                  <div className="space-y-1.5 text-xs text-muted-foreground">
+                                    <div>
+                                      <span className="font-bold text-foreground">참석 ({attendingList.length}):</span>{" "}
+                                      {attendingList.length > 0 
+                                        ? attendingList.map(r => r.userRealName || r.userName).join(", ") 
+                                        : "없음"}
+                                    </div>
+                                    <div>
+                                      <span className="font-bold text-foreground">불참 ({absentList.length}):</span>{" "}
+                                      {absentList.length > 0 
+                                        ? absentList.map(r => r.userRealName || r.userName).join(", ") 
+                                        : "없음"}
+                                    </div>
+                                    <div>
+                                      <span className="font-bold text-foreground">보류 ({maybeList.length}):</span>{" "}
+                                      {maybeList.length > 0 
+                                        ? maybeList.map(r => r.userRealName || r.userName).join(", ") 
+                                        : "없음"}
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
                         )}
                       </div>
@@ -1398,6 +1749,22 @@ export default function CalendarPage() {
                         );
                       })()}
 
+                      {/* RSVP 참석 여부 조사 토글 (수정 모드) */}
+                      {selectedEvent.category === "group" && (
+                        <div className="flex items-center justify-between p-3 py-2.5 bg-emerald-50/20 border border-emerald-250/20 rounded-xl mt-2.5 font-sans">
+                          <div className="flex items-start gap-2.5">
+                            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                            <div className="text-left">
+                              <span className="text-[11px] font-black text-emerald-800 dark:text-emerald-300">참석 여부 조사 활성화</span>
+                              <p className="text-[9px] font-semibold text-emerald-700/70 dark:text-emerald-400/70 mt-0.5 leading-snug">
+                                단원들이 일정 카드에서 참석 / 불참 / 보류를 투표할 수 있습니다.
+                              </p>
+                            </div>
+                          </div>
+                          <Switch checked={editHasRsvp} onCheckedChange={setEditHasRsvp} className="shrink-0" />
+                        </div>
+                      )}
+
                       <DialogFooter className="pt-4 flex gap-2 justify-end">
                         <Button
                           type="button"
@@ -1420,6 +1787,83 @@ export default function CalendarPage() {
                 </div>
               )}
             </AnimatePresence>
+          </DialogContent>
+        </Dialog>
+
+        {/* 3. 카테고리 색상 설정 모달 */}
+        <Dialog open={isThemeOpen} onOpenChange={setIsThemeOpen}>
+          <DialogContent className="max-w-md rounded-2xl border-border bg-card/90 backdrop-blur-md">
+            <DialogHeader>
+              <DialogTitle className="text-lg font-black flex items-center gap-2 text-foreground">
+                <Tag className="w-5 h-5 text-primary" />
+                캘린더 색상 설정
+              </DialogTitle>
+              <DialogDescription className="text-xs font-semibold text-muted-foreground">
+                각 일정 카테고리에 알맞은 커스텀 색상을 지정해보세요. 지정된 색상은 즉시 캘린더 전반에 걸쳐 반영됩니다.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-3 font-sans">
+              {(Object.keys(DEFAULT_CATEGORY_COLORS) as CalendarCategory[]).map((category) => {
+                const label = CATEGORY_LABELS[category];
+                const activeStyle = getCategoryStyle(category);
+                const currentTheme = userThemes.find((t) => t.category === category);
+                const currentColorKey = currentTheme?.color || DEFAULT_CATEGORY_COLORS[category];
+
+                return (
+                  <div key={category} className="space-y-2 pb-3 border-b border-border/40 last:border-0 last:pb-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-foreground">{label}</span>
+                      <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-md border", activeStyle.badge)}>
+                        미리보기
+                      </span>
+                    </div>
+                    
+                    {/* 색상 선택 그리드 */}
+                    <div className="flex items-center gap-2">
+                      {Object.keys(THEME_COLORS).map((colorKey) => {
+                        const style = THEME_COLORS[colorKey];
+                        const isActive = currentColorKey === colorKey;
+                        return (
+                          <button
+                            key={colorKey}
+                            type="button"
+                            onClick={() => {
+                              updateThemeMutation.mutate({
+                                category,
+                                color: colorKey,
+                              });
+                            }}
+                            className={cn(
+                              "w-7 h-7 rounded-full cursor-pointer flex items-center justify-center transition-all duration-200 border-2 hover:scale-110",
+                              style.dot,
+                              isActive 
+                                ? "border-primary scale-105 shadow-md shadow-primary/20" 
+                                : "border-transparent opacity-80 hover:opacity-100"
+                            )}
+                            title={colorKey}
+                          >
+                            {isActive && (
+                              <CheckCircle className="w-4 h-4 text-white drop-shadow-md" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                onClick={() => setIsThemeOpen(false)}
+                className="w-full rounded-xl font-bold cursor-pointer bg-primary text-primary-foreground"
+              >
+                설정 완료
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>

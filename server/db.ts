@@ -46,6 +46,9 @@ import {
   calendarEvents,
   CalendarEvent,
   InsertCalendarEvent,
+  eventRsvps,
+  userCalendarThemes,
+  calendarTodos,
   groups,
   Group,
   InsertGroup,
@@ -1645,6 +1648,129 @@ export async function deleteCalendarEvent(id: number, userId: number) {
   await db
     .delete(calendarEvents)
     .where(and(eq(calendarEvents.id, id), eq(calendarEvents.userId, userId)));
+  return { success: true };
+}
+
+// * RSVP 관련 DB 함수
+export async function submitEventRsvp(userId: number, eventId: number, status: "attending" | "absent" | "maybe") {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+  
+  const result = await db.insert(eventRsvps)
+    .values({
+      eventId,
+      userId,
+      status,
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: [eventRsvps.eventId, eventRsvps.userId],
+      set: {
+        status,
+        updatedAt: new Date(),
+      }
+    })
+    .returning();
+  return result[0];
+}
+
+export async function getEventRsvps(eventId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  
+  return db
+    .select({
+      id: eventRsvps.id,
+      eventId: eventRsvps.eventId,
+      userId: eventRsvps.userId,
+      status: eventRsvps.status,
+      updatedAt: eventRsvps.updatedAt,
+      userName: users.name,
+      userRealName: users.realName,
+    })
+    .from(eventRsvps)
+    .innerJoin(users, eq(eventRsvps.userId, users.id))
+    .where(eq(eventRsvps.eventId, eventId));
+}
+
+// * 테마 커스텀 관련 DB 함수
+export async function updateUserCalendarTheme(userId: number, category: string, color: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+  
+  const result = await db.insert(userCalendarThemes)
+    .values({
+      userId,
+      category,
+      color,
+    })
+    .onConflictDoUpdate({
+      target: [userCalendarThemes.userId, userCalendarThemes.category],
+      set: {
+        color,
+      }
+    })
+    .returning();
+  return result[0];
+}
+
+export async function getUserCalendarThemes(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(userCalendarThemes).where(eq(userCalendarThemes.userId, userId));
+}
+
+// * 데일리 투두 관련 DB 함수
+export async function listCalendarTodos(userId: number, date: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(calendarTodos)
+    .where(and(eq(calendarTodos.userId, userId), eq(calendarTodos.date, date)))
+    .orderBy(calendarTodos.createdAt);
+}
+
+export async function createCalendarTodo(userId: number, date: string, content: string) {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+  const result = await db.insert(calendarTodos)
+    .values({
+      userId,
+      date,
+      content,
+    })
+    .returning();
+  return result[0];
+}
+
+export async function toggleCalendarTodo(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+  
+  const todo = await db
+    .select()
+    .from(calendarTodos)
+    .where(and(eq(calendarTodos.id, id), eq(calendarTodos.userId, userId)))
+    .limit(1);
+    
+  if (todo.length === 0) throw new Error("투두 항목을 찾을 수 없습니다.");
+  
+  const nextVal = todo[0].isCompleted === 1 ? 0 : 1;
+  const result = await db
+    .update(calendarTodos)
+    .set({ isCompleted: nextVal })
+    .where(and(eq(calendarTodos.id, id), eq(calendarTodos.userId, userId)))
+    .returning();
+  return result[0];
+}
+
+export async function deleteCalendarTodo(id: number, userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+  await db
+    .delete(calendarTodos)
+    .where(and(eq(calendarTodos.id, id), eq(calendarTodos.userId, userId)));
   return { success: true };
 }
 

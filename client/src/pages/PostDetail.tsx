@@ -278,6 +278,25 @@ export default function PostDetail() {
   const isAdmin = user?.role === "admin";
   const canManage = isAuthor || isAdmin;
 
+  const handleAddToCalendar = () => {
+    if (!isAuthenticated) {
+      window.location.href = getLoginUrl();
+      return;
+    }
+    toggleBookmarkMutation.mutate(
+      { postId },
+      {
+        onSuccess: () => {
+          if (isBookmarked) {
+            toast.success("캘린더에서 마감 일정이 제거되었습니다.");
+          } else {
+            toast.success("내 캘린더에 마감 일정이 성공적으로 추가되었습니다!");
+          }
+        },
+      }
+    );
+  };
+
   const now = new Date();
   const deadlineDate = post.deadline ? new Date(post.deadline) : null;
   const isExpired = deadlineDate ? deadlineDate < now : false;
@@ -861,11 +880,28 @@ export default function PostDetail() {
                       <p className="text-muted-foreground font-bold text-[11px] uppercase tracking-wider mb-1.5 opacity-60">
                         마감 일정
                       </p>
-                      <p className="font-black text-foreground text-base">
-                        {deadlineDate
-                          ? `${deadlineDate.toLocaleDateString("ko-KR")} ${deadlineDate.getHours().toString().padStart(2, "0")}:${deadlineDate.getMinutes().toString().padStart(2, "0")}`
-                          : "상시모집"}
-                      </p>
+                      <div className="flex flex-col gap-1.5">
+                        <p className="font-black text-foreground text-base">
+                          {deadlineDate
+                            ? `${deadlineDate.toLocaleDateString("ko-KR")} ${deadlineDate.getHours().toString().padStart(2, "0")}:${deadlineDate.getMinutes().toString().padStart(2, "0")}`
+                            : "상시모집"}
+                        </p>
+                        {deadlineDate && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleAddToCalendar}
+                            className={`h-8 rounded-xl font-bold border flex items-center gap-1.5 justify-center mt-1 text-[10px] w-full cursor-pointer transition-all ${
+                              isBookmarked
+                                ? "bg-amber-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20"
+                                : "border-primary/20 text-primary hover:bg-primary/5"
+                            }`}
+                          >
+                            <Calendar className="w-3.5 h-3.5" />
+                            {isBookmarked ? "캘린더 연동 완료 (해제)" : "내 캘린더에 마감일 추가"}
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <p className="text-muted-foreground font-bold text-[11px] uppercase tracking-wider mb-1.5 opacity-60">
