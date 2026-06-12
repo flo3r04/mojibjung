@@ -1496,18 +1496,23 @@ function GroupFilesSection({
   const utils = trpc.useUtils();
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [fileName, setFileName] = useState("");
-  const [fileSizeStr, setFileSizeStr] = useState("1024"); // KB 단위 입력
+  const [fileSizeStr, setFileSizeStr] = useState("0");
   const [fileType, setFileType] = useState("application/pdf");
-  const [fileUrl, setFileUrl] = useState("https://hufs.ac.kr/files/sample.pdf");
+  const [fileUrl, setFileUrl] = useState("");
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [fileBase64, setFileBase64] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { data: files = [], isLoading } = trpc.group.listFiles.useQuery({ groupId });
+
+  const uploadFileMutation = trpc.upload.file.useMutation();
 
   const uploadMutation = trpc.group.uploadFile.useMutation({
     onSuccess: () => {
       utils.group.listFiles.invalidate({ groupId });
-      setUploadModalOpen(false);
-      setFileName("");
-      toast.success("파일이 등록되었습니다. (가상 자료)");
+      handleOpenChange(false);
+      toast.success("파일이 자료실에 성공적으로 등록되었습니다.");
     },
     onError: (err) => toast.error(err.message),
   });
@@ -1520,20 +1525,75 @@ function GroupFilesSection({
     onError: (err) => toast.error(err.message),
   });
 
-  const handleUploadSubmit = (e: React.FormEvent) => {
+  const resetForm = () => {
+    setFileName("");
+    setFileSizeStr("0");
+    setFileType("application/pdf");
+    setFileUrl("");
+    setSelectedFile(null);
+    setFileBase64(null);
+  };
+
+  const handleOpenChange = (open: boolean) => {
+    setUploadModalOpen(open);
+    if (!open) {
+      resetForm();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("최대 10MB 크기의 파일만 업로드할 수 있습니다.");
+      e.target.value = "";
+      return;
+    }
+
+    setSelectedFile(file);
+    setFileName(file.name);
+    setFileSizeStr(Math.ceil(file.size / 1024).toString());
+    setFileType(file.type || "application/octet-stream");
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFileBase64(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fileName.trim()) {
       toast.error("파일명은 필수입니다.");
       return;
     }
-    const sizeInBytes = parseInt(fileSizeStr) * 1024;
-    uploadMutation.mutate({
-      groupId,
-      fileName,
-      fileSize: sizeInBytes,
-      fileType,
-      fileUrl,
-    });
+    if (!fileBase64 || !selectedFile) {
+      toast.error("업로드할 파일을 선택해주세요.");
+      return;
+    }
+
+    try {
+      setIsUploading(true);
+      const uploadRes = await uploadFileMutation.mutateAsync({
+        data: fileBase64,
+        name: selectedFile.name,
+        type: selectedFile.type || "application/octet-stream",
+      });
+
+      uploadMutation.mutate({
+        groupId,
+        fileName,
+        fileSize: selectedFile.size,
+        fileType: selectedFile.type || "application/octet-stream",
+        fileUrl: uploadRes.url,
+      });
+    } catch (err: any) {
+      toast.error(err.message || "파일 업로드에 실패했습니다.");
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const formatBytes = (bytes: number) => {
@@ -1641,74 +1701,76 @@ function GroupFilesSection({
         </div>
       )}
 
-      {/* 파일 가상 업로드 모달창 */}
-      <Dialog open={uploadModalOpen} onOpenChange={setUploadModalOpen}>
+      {/* 파일 업로드 모달창 */}
+      <Dialog open={uploadModalOpen} onOpenChange={handleOpenChange}>
         <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
               <UploadCloud className="w-5.5 h-5.5 text-primary" />
-              자료 공유 등록
+              자료 업로드 등록
             </DialogTitle>
             <DialogDescription className="text-muted-foreground font-medium text-xs">
-              학습자료나 발표자료를 가상 파일 형태로 공유 목록에 등록합니다.
+              컴퓨터 저장소에서 학습자료나 발표자료를 직접 선택하여 업로드합니다. (최대 10MB)
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleUploadSubmit} className="space-y-4 my-3 text-xs">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-black text-muted-foreground">공유 파일명</label>
+              <label className="text-[11px] font-black text-muted-foreground">파일 선택</label>
               <Input
-                value={fileName}
-                onChange={(e) => setFileName(e.target.value)}
-                placeholder="예: 스터디 3주차 파이썬 강의자료.pdf"
-                className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary"
+                type="file"
+                onChange={handleFileChange}
+                className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary cursor-pointer pt-2 px-3 file:mr-2 file:py-0 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-black file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
                 required
               />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-black text-muted-foreground">파일 크기 (KB)</label>
-                <Input
-                  type="number"
-                  value={fileSizeStr}
-                  onChange={(e) => setFileSizeStr(e.target.value)}
-                  className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary"
-                  required
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-black text-muted-foreground">파일 확장자 타입</label>
-                <select
-                  value={fileType}
-                  onChange={(e) => setFileType(e.target.value)}
-                  className="w-full rounded-xl font-bold h-10 px-3 border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="application/pdf">PDF 파일 (.pdf)</option>
-                  <option value="application/vnd.openxmlformats-officedocument.presentationml.presentation">PPT 발표자료 (.pptx)</option>
-                  <option value="image/png">이미지 (.png)</option>
-                  <option value="text/plain">텍스트 문서 (.txt)</option>
-                </select>
-              </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-black text-muted-foreground">파일 다운로드 링크 (가상 URL)</label>
-              <Input
-                value={fileUrl}
-                onChange={(e) => setFileUrl(e.target.value)}
-                placeholder="https://..."
-                className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary"
-                required
-              />
-            </div>
+            {selectedFile && (
+              <>
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-black text-muted-foreground">공유 파일명 (수정 가능)</label>
+                  <Input
+                    value={fileName}
+                    onChange={(e) => setFileName(e.target.value)}
+                    placeholder="공유할 파일 이름을 입력해주세요."
+                    className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary"
+                    required
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 bg-muted/10 p-3 rounded-2xl border border-border/30">
+                  <div>
+                    <span className="text-[10px] font-black text-muted-foreground block">파일 크기</span>
+                    <span className="text-xs font-bold text-foreground mt-0.5 block">
+                      {formatBytes(selectedFile.size)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black text-muted-foreground block">파일 유형</span>
+                    <span className="text-xs font-bold text-foreground mt-0.5 block truncate">
+                      {selectedFile.type || "알 수 없음"}
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
 
             <DialogFooter className="pt-2 gap-2">
-              <Button type="button" variant="outline" className="rounded-xl font-bold" onClick={() => setUploadModalOpen(false)}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                className="rounded-xl font-bold" 
+                onClick={() => handleOpenChange(false)}
+                disabled={isUploading}
+              >
                 취소
               </Button>
-              <Button type="submit" className="rounded-xl font-black shadow-md bg-primary" disabled={uploadMutation.isPending}>
-                등록 완료
+              <Button 
+                type="submit" 
+                className="rounded-xl font-black shadow-md bg-primary" 
+                disabled={isUploading || !selectedFile}
+              >
+                {isUploading ? "업로드 중..." : "업로드 완료"}
               </Button>
             </DialogFooter>
           </form>

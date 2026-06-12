@@ -1330,6 +1330,25 @@ export const appRouter = router({
 
         return { url: result.url };
       }),
+
+    file: protectedVerifiedProcedure
+      .input(
+        z.object({
+          data: z.string(), // Base64 데이터
+          name: z.string(),
+          type: z.string(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        // Base64 데이터를 Buffer로 변환 (모든 파일 형식 지원)
+        const base64Data = input.data.replace(/^data:[^;]+;base64,/, "");
+        const buffer = Buffer.from(base64Data, "base64");
+
+        const path = `uploads/${ctx.user.id}/${Date.now()}_${input.name}`;
+        const result = await storagePut(path, buffer, input.type);
+
+        return { url: result.url };
+      }),
   }),
 
   // [그룹 관련 API]
