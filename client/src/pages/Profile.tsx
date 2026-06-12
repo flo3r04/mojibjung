@@ -957,33 +957,6 @@ export default function Profile() {
                       "수정 완료 및 프로필 저장"
                     )}
                   </Button>
-                  
-                  {isSetupMode && (
-                    <div className="text-center">
-                      <Link href="/" className="text-xs text-muted-foreground hover:text-primary transition-colors">
-                        나중에 할게요 (홈으로 가기)
-                      </Link>
-                    </div>
-                  )}
-
-                  {/* 개발 디버깅용 리셋 버튼 (로그인되어 있다면 테스트 편의를 위해 항상 노출) */}
-                  {user && (
-                    <div className="pt-4 border-t border-border mt-6">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          if (confirm("이메일 인증을 처음부터 다시 진행하기 위해 계정 인증 상태를 초기화하시겠습니까?")) {
-                            resetMutation.mutate();
-                          }
-                        }}
-                        disabled={resetMutation.isPending}
-                        className="w-full h-11 border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl text-xs font-bold"
-                      >
-                        {resetMutation.isPending ? "초기화 진행 중..." : "⚠️ 개발용: 학교 메일 인증 처음부터 다시 테스트하기 (계정 초기화)"}
-                      </Button>
-                    </div>
-                  )}
                 </div>
               </form>
             )}
