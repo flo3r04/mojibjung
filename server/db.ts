@@ -64,6 +64,7 @@ import {
   emailVerifications,
   EmailVerification,
   InsertEmailVerification,
+  refreshTokens,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -219,6 +220,12 @@ export async function deleteUser(id: number) {
   await db
     .delete(messages)
     .where(or(eq(messages.senderId, id), eq(messages.receiverId, id)));
+
+  // 6.5. 이메일 인증 이력, 세션 리프레시 토큰, 차단 이력, 그룹 멤버십 연관 데이터 영구 제거
+  await db.delete(emailVerifications).where(eq(emailVerifications.userId, id));
+  await db.delete(refreshTokens).where(eq(refreshTokens.userId, id));
+  await db.delete(groupMembers).where(eq(groupMembers.userId, id));
+  await db.delete(blocks).where(or(eq(blocks.blockerId, id), eq(blocks.blockedId, id)));
 
   // 7. 최종적으로 사용자 계정 삭제
   await db.delete(users).where(eq(users.id, id));
