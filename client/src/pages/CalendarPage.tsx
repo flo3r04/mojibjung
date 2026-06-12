@@ -26,6 +26,8 @@ import {
   Users,
   Loader2,
   Lock,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -129,6 +131,7 @@ export default function CalendarPage() {
   const [newIsPrivate, setNewIsPrivate] = useState(false);
   const [editIsPrivate, setEditIsPrivate] = useState(false);
   const [accessKey, setAccessKey] = useState("");
+  const [isGroupSectionExpanded, setIsGroupSectionExpanded] = useState(false);
 
   // tRPC 쿼리 및 뮤테이션
   const { data: events = [], isLoading, refetch } = trpc.calendar.list.useQuery(undefined, {
@@ -660,7 +663,7 @@ export default function CalendarPage() {
         </div>
 
         {/* 메인 콘텐츠 그리드 */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:items-stretch items-start">
           {/* 좌측: 전용 캘린더 그리드 */}
           <div className="lg:col-span-8 bg-card/65 backdrop-blur-md rounded-3xl border border-border p-6 shadow-md relative overflow-hidden">
             <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-sky-300 via-primary/30 to-indigo-300" />
@@ -734,7 +737,7 @@ export default function CalendarPage() {
           </div>
 
           {/* 우측: 다가오는 주요 학사 및 개인 일정 리스트 (Agenda D-Day) */}
-          <div className="lg:col-span-4 flex flex-col gap-6">
+          <div className="lg:col-span-4 flex flex-col gap-6 h-full">
             {/* 1. 선택일 일정 상세 요약 */}
             <div className="bg-card/65 backdrop-blur-md rounded-3xl border border-border p-6 shadow-md">
               <h2 className="text-md font-black text-foreground mb-3 flex items-center gap-2 border-b border-border/40 pb-2">
@@ -805,7 +808,7 @@ export default function CalendarPage() {
             </div>
 
             {/* 2. 전체 어젠다 리스트 */}
-            <div className="bg-card/65 backdrop-blur-md rounded-3xl border border-border p-6 shadow-md flex-1 flex flex-col min-h-[400px]">
+            <div className="bg-card/65 backdrop-blur-md rounded-3xl border border-border p-6 shadow-md flex-1 flex flex-col lg:min-h-0 min-h-[300px]">
               <div className="flex items-center justify-between mb-4 border-b border-border/40 pb-3">
                 <h2 className="text-md font-black text-foreground flex items-center gap-2">
                   <Tag className="w-4.5 h-4.5 text-sky-500" />
@@ -842,7 +845,7 @@ export default function CalendarPage() {
               </div>
 
               {/* 일정 목록 */}
-              <div className="space-y-2.5 overflow-y-auto max-h-[350px] pr-1 flex-1">
+              <div className="space-y-2.5 overflow-y-auto pr-1 flex-1 min-h-0">
                 {filteredAgendaEvents.length === 0 ? (
                   <div className="text-center py-16 text-muted-foreground">
                     <Info className="w-10 h-10 mx-auto mb-2 text-muted-foreground/30" />
@@ -924,77 +927,139 @@ export default function CalendarPage() {
             </div>
 
             {/* 3. 동아리 및 스터디 일정 연동 카드 */}
-            <div className="bg-card/65 backdrop-blur-md rounded-3xl border border-border p-6 shadow-md mt-6">
-              <h2 className="text-md font-black text-foreground flex items-center gap-2 mb-3 border-b border-border/40 pb-2">
-                <Key className="w-4.5 h-4.5 text-emerald-500" />
-                동아리 / 스터디 일정 연동
-              </h2>
-              <p className="text-xs text-muted-foreground leading-relaxed font-semibold mb-4">
-                지급받은 고유 키(Access Key)를 등록하면, 해당 단체의 활동 일정이 본인의 캘린더에 자동으로 동기화됩니다.
-              </p>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (!accessKey.trim()) {
-                    toast.error("고유 키를 입력해주세요.");
-                    return;
-                  }
-                  joinGroupMutation.mutate({ accessKey });
-                }}
-                className="space-y-3"
-              >
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="예: XXXX-XXXX-XXXX"
-                    value={accessKey}
-                    onChange={(e) => setAccessKey(e.target.value)}
-                    className="rounded-xl h-10 text-xs font-mono font-bold tracking-wider uppercase bg-card"
-                  />
+            <div className="bg-card/65 backdrop-blur-md rounded-3xl border border-border p-6 shadow-md">
+              <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-3">
+                <h2 className="text-md font-black text-foreground flex items-center gap-2">
+                  <Key className="w-4.5 h-4.5 text-emerald-500" />
+                  동아리 / 스터디 일정 연동
+                </h2>
+                <div className="flex items-center gap-2">
+                  {!isGroupSectionExpanded && (
+                    <Badge variant="outline" className="bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] font-black px-2 py-0.5 rounded-full select-none">
+                      연동: {myJoinedGroups.length}개
+                    </Badge>
+                  )}
                   <Button
-                    type="submit"
-                    className="h-10 px-4 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-600 text-white font-sans text-xs flex items-center gap-1 shrink-0"
-                    disabled={joinGroupMutation.isPending}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsGroupSectionExpanded(!isGroupSectionExpanded)}
+                    className="h-7 w-7 rounded-lg p-0 hover:bg-muted text-muted-foreground transition-all cursor-pointer"
                   >
-                    {joinGroupMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                    {isGroupSectionExpanded ? (
+                      <ChevronUp className="w-4 h-4" />
                     ) : (
-                      "연동"
+                      <ChevronDown className="w-4 h-4" />
                     )}
                   </Button>
                 </div>
-              </form>
+              </div>
 
-              {/* 내가 스케줄을 관리하는 그룹 목록 표시 */}
-              {manageableGroups.length > 0 && (
-                <div className="mt-5 pt-4 border-t border-border/40 space-y-2">
-                  <h3 className="text-xs font-black text-foreground flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-primary" />
-                    내가 스케줄을 관리하는 그룹
-                  </h3>
-                  <div className="space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
-                    {manageableGroups.map((g) => (
-                      <div 
-                        key={g.id} 
-                        className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/50 text-[11px]"
-                      >
-                        <span className="font-bold text-foreground truncate max-w-[110px]">{g.name}</span>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            navigator.clipboard.writeText(g.accessKey);
-                            toast.success(`'${g.name}' 그룹 키가 복사되었습니다!`);
-                          }}
-                          title="클릭하여 고유 키 복사"
-                          className="font-mono text-[9.5px] bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100 hover:bg-emerald-500 hover:text-white px-2 py-0.5 rounded font-black border border-slate-300 dark:border-slate-700 transition-all cursor-pointer shadow-xs active:scale-95"
-                        >
-                          {g.accessKey} (복사)
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-[10px] text-muted-foreground/80 font-medium">
-                    * 리더는 새 일정을 추가할 때 해당 그룹을 선택하여 스케줄을 대량 관리할 수 있습니다.
+              {!isGroupSectionExpanded ? (
+                <p className="text-xs text-muted-foreground leading-relaxed font-semibold">
+                  지급받은 고유 키를 등록하거나 연동된 그룹 목록을 확인하려면 토글을 클릭하세요.
+                </p>
+              ) : (
+                <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <p className="text-xs text-muted-foreground leading-relaxed font-semibold">
+                    지급받은 고유 키(Access Key)를 등록하면, 해당 단체의 활동 일정이 본인의 캘린더에 자동으로 동기화됩니다.
                   </p>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!accessKey.trim()) {
+                        toast.error("고유 키를 입력해주세요.");
+                        return;
+                      }
+                      joinGroupMutation.mutate({ accessKey });
+                    }}
+                    className="space-y-3"
+                  >
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="예: XXXX-XXXX-XXXX"
+                        value={accessKey}
+                        onChange={(e) => setAccessKey(e.target.value)}
+                        className="rounded-xl h-10 text-xs font-mono font-bold tracking-wider uppercase bg-card"
+                      />
+                      <Button
+                        type="submit"
+                        className="h-10 px-4 rounded-xl font-bold bg-emerald-500 hover:bg-emerald-600 text-white font-sans text-xs flex items-center gap-1 shrink-0"
+                        disabled={joinGroupMutation.isPending}
+                      >
+                        {joinGroupMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          "연동"
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+
+                  {/* 연동 완료된 그룹 목록 (myJoinedGroups) */}
+                  <div className="pt-2 space-y-2">
+                    <h3 className="text-xs font-black text-foreground flex items-center gap-1.5">
+                      <Users className="w-3.5 h-3.5 text-emerald-500" />
+                      연동된 그룹 목록 ({myJoinedGroups.length}개)
+                    </h3>
+                    {myJoinedGroups.length === 0 ? (
+                      <div className="text-center py-4 rounded-xl border border-dashed border-border/60 bg-muted/20 text-muted-foreground text-[11px] font-semibold">
+                        연동된 그룹이 없습니다.
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 max-h-[150px] overflow-y-auto pr-1">
+                        {myJoinedGroups.map((g) => (
+                          <div 
+                            key={g.id} 
+                            className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/50 text-[11px]"
+                          >
+                            <div className="flex flex-col gap-0.5 min-w-0 flex-1 mr-2">
+                              <span className="font-bold text-foreground truncate">{g.name}</span>
+                              <span className="text-[9.5px] text-muted-foreground font-medium">
+                                역할: {g.isLeader ? "리더" : (g.userRole || "멤버")} · 멤버 {g.memberCount}명
+                              </span>
+                            </div>
+                            <span className="text-[9px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20 shrink-0">
+                              연동됨
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 내가 스케줄을 관리하는 그룹 목록 표시 */}
+                  {manageableGroups.length > 0 && (
+                    <div className="pt-3 border-t border-border/40 space-y-2">
+                      <h3 className="text-xs font-black text-foreground flex items-center gap-1.5">
+                        <Users className="w-3.5 h-3.5 text-primary" />
+                        내가 스케줄을 관리하는 그룹
+                      </h3>
+                      <div className="space-y-1.5 max-h-[120px] overflow-y-auto pr-1">
+                        {manageableGroups.map((g) => (
+                          <div 
+                            key={g.id} 
+                            className="flex items-center justify-between p-2 rounded-lg bg-muted/40 border border-border/50 text-[11px]"
+                          >
+                            <span className="font-bold text-foreground truncate max-w-[110px]">{g.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(g.accessKey);
+                                toast.success(`'${g.name}' 그룹 키가 복사되었습니다!`);
+                              }}
+                              title="클릭하여 고유 키 복사"
+                              className="font-mono text-[9.5px] bg-slate-200 text-slate-900 dark:bg-slate-800 dark:text-slate-100 hover:bg-emerald-500 hover:text-white px-2 py-0.5 rounded font-black border border-slate-300 dark:border-slate-700 transition-all cursor-pointer shadow-xs active:scale-95"
+                            >
+                              {g.accessKey} (복사)
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground/80 font-medium">
+                        * 리더는 새 일정을 추가할 때 해당 그룹을 선택하여 스케줄을 대량 관리할 수 있습니다.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

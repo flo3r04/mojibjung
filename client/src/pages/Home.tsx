@@ -344,7 +344,7 @@ export default function Home() {
                     {(() => {
                       const examInfo = getAcademicDDay(calendarEvents, "기말시험", "1학기 기말시험 기간");
                       const vacationInfo = getAcademicDDay(calendarEvents, "계절학기", "여름방학 및 계절학기 개강");
-                      const gradeInfo = getAcademicDDay(calendarEvents, "성적 공시", "1학기 성적 공시 및 정정");
+                      const gradeInfo = getAcademicDDay(calendarEvents, "성적 열람", "1학기 성적 열람 및 정정");
 
                       return (
                         <>
