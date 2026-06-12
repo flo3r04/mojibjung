@@ -62,7 +62,7 @@ export default function Navbar() {
   });
 
   return (
-    <header className="sticky top-0 z-50 bg-card/90 backdrop-blur-md">
+    <header className="sticky top-0 z-50 bg-card/90 backdrop-blur-md border-b border-border/40">
       <div className="container">
         <div className="flex items-center justify-between h-16">
           
@@ -81,8 +81,8 @@ export default function Navbar() {
 
             {/* Search Button - 메인 페이지 돋보기 버튼 */}
             <Link href="/board">
-              <Button size="icon" variant="ghost" className="rounded-full">
-                <Search className="w-5 h-5" />
+              <Button size="icon" variant="ghost" className="h-9 w-9 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer">
+                <Search className="w-4.5 h-4.5" />
               </Button>
             </Link>
 
@@ -91,14 +91,14 @@ export default function Navbar() {
               <Button
                 size="icon"
                 variant="ghost"
-                className="rounded-full text-muted-foreground hover:text-foreground"
+                className="h-9 w-9 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
                 onClick={toggleTheme}
                 aria-label="테마 변경"
               >
                 {theme === "dark" ? (
-                  <Sun className="w-5 h-5 text-yellow-500 animate-in spin-in-45 duration-300" />
+                  <Sun className="w-4.5 h-4.5 text-yellow-500 animate-in spin-in-45 duration-300" />
                 ) : (
-                  <Moon className="w-5 h-5" />
+                  <Moon className="w-4.5 h-4.5" />
                 )}
               </Button>
             )}
@@ -107,7 +107,7 @@ export default function Navbar() {
               <>
                 {/* [글 쓰기 버튼] */}
                 <Link href="/post/new">
-                  <Button size="sm" className="hidden sm:flex gap-1.5 font-bold rounded-full px-4">
+                  <Button size="sm" className="hidden sm:flex items-center gap-1.5 font-bold rounded-xl px-4 h-9 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 transition-all cursor-pointer shadow-xs active:scale-95 text-xs">
                     <PenSquare className="w-4 h-4" />
                     새 글 쓰기
                   </Button>
@@ -115,10 +115,10 @@ export default function Navbar() {
 
                 {/* [메시지 버튼] */}
                 <Link href="/messages">
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary relative">
-                    <MessageSquare className="w-5 h-5" />
+                  <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer relative">
+                    <MessageSquare className="w-4.5 h-4.5" />
                     {unreadCount && unreadCount > 0 ? (
-                      <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-primary text-white text-[10px] font-bold rounded-full flex items-center justify-center border-2 border-card px-1">
+                      <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-[16px] bg-primary text-white text-[9px] font-black rounded-full flex items-center justify-center border border-card px-0.5 shadow-sm">
                         {unreadCount > 99 ? "99+" : unreadCount}
                       </span>
                     ) : null}
@@ -128,28 +128,39 @@ export default function Navbar() {
                 {/* [사용자 프로필 드롭다운 메뉴] */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex items-center gap-2 rounded-full hover:bg-accent transition-colors p-1 pr-2">
-                      <Avatar className="w-8 h-8">
-                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
+                    <button className="relative flex items-center justify-center rounded-full hover:scale-105 transition-all p-0.5 cursor-pointer focus:outline-hidden">
+                      <Avatar className="w-8 h-8 border border-border/60">
+                        <AvatarFallback className="bg-primary/15 text-primary text-xs font-black">
                           {user?.realName?.charAt(0) ?? user?.name?.charAt(0) ?? "U"}
                         </AvatarFallback>
                       </Avatar>
-                      <span className="hidden sm:flex items-center gap-1 text-sm font-medium text-foreground max-w-[120px]">
-                        <span className="truncate">{user?.realName ?? user?.name ?? "사용자"}</span>
-                        {isVerified && (
-                          <ShieldCheck
-                            className="w-3.5 h-3.5 text-emerald-600 shrink-0"
-                            aria-label="학교 인증 완료"
-                          />
-                        )}
-                      </span>
+                      {isVerified && (
+                        <div className="absolute -bottom-0.5 -right-0.5 bg-background dark:bg-slate-900 rounded-full p-0.5 border border-border shadow-xs shrink-0">
+                          <ShieldCheck className="w-3 h-3 text-emerald-500 fill-emerald-500/10" />
+                        </div>
+                      )}
                     </button>
                   </DropdownMenuTrigger>
                   
-                  <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuContent align="end" className="w-52 p-1.5 rounded-2xl border-border/50 shadow-xl bg-card/95 backdrop-blur-md">
+                    {/* 사용자 정보 헤더 */}
+                    <div className="px-2 py-1.5 mb-1.5 border-b border-border/40 select-none">
+                      <div className="flex items-center gap-1">
+                        <span className="font-black text-xs text-foreground truncate max-w-[130px]">
+                          {user?.realName ?? user?.name ?? "사용자"}
+                        </span>
+                        {isVerified && (
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500/10 shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-[9.5px] text-muted-foreground font-semibold truncate block mt-0.5">
+                        {user?.verifiedEmail ?? "이메일 미연동"}
+                      </span>
+                    </div>
+
                     {/* 마이페이지 링크 */}
                     <DropdownMenuItem asChild>
-                      <Link href="/mypage" className="flex items-center gap-2 cursor-pointer">
+                      <Link href="/mypage" className="flex items-center gap-2 cursor-pointer rounded-xl py-2 px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
                         <LayoutDashboard className="w-4 h-4" />
                         마이페이지
                       </Link>
@@ -157,7 +168,7 @@ export default function Navbar() {
 
                     {/* 마이캘린더 링크 */}
                     <DropdownMenuItem asChild>
-                      <Link href="/calendar" className="flex items-center gap-2 cursor-pointer">
+                      <Link href="/calendar" className="flex items-center gap-2 cursor-pointer rounded-xl py-2 px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
                         <Calendar className="w-4 h-4" />
                         마이캘린더
                       </Link>
@@ -165,7 +176,7 @@ export default function Navbar() {
 
                     {/* 그룹 소통/일정 링크 */}
                     <DropdownMenuItem asChild>
-                      <Link href="/groups" className="flex items-center gap-2 cursor-pointer">
+                      <Link href="/groups" className="flex items-center gap-2 cursor-pointer rounded-xl py-2 px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
                         <Users className="w-4 h-4" />
                         그룹 소통/일정
                       </Link>
@@ -173,7 +184,7 @@ export default function Navbar() {
 
                     {/* 메시지 링크 */}
                     <DropdownMenuItem asChild>
-                      <Link href="/messages" className="flex items-center gap-2 cursor-pointer">
+                      <Link href="/messages" className="flex items-center gap-2 cursor-pointer rounded-xl py-2 px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
                         <MessageSquare className="w-4 h-4" />
                         메시지함
                       </Link>
@@ -181,7 +192,7 @@ export default function Navbar() {
                     
                     {/* 프로필 설정 링크 */}
                     <DropdownMenuItem asChild>
-                      <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
+                      <Link href="/profile" className="flex items-center gap-2 cursor-pointer rounded-xl py-2 px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
                         <User className="w-4 h-4" />
                         프로필 설정
                       </Link>
@@ -192,7 +203,7 @@ export default function Navbar() {
                     {/* 관리자 대시보드 (관리자 계정만 표시) */}
                     {user?.role === "admin" && (
                       <DropdownMenuItem asChild>
-                        <Link href="/admin" className="flex items-center gap-2 cursor-pointer text-primary">
+                        <Link href="/admin" className="flex items-center gap-2 cursor-pointer text-primary rounded-xl py-2 px-2.5 text-xs font-semibold">
                           <ShieldAlert className="w-4 h-4" />
                           관리자 대시보드
                         </Link>
@@ -202,7 +213,7 @@ export default function Navbar() {
                     {/* 로그아웃 버튼 */}
                     <DropdownMenuItem
                       onClick={() => logout()}
-                      className="text-destructive focus:text-destructive flex items-center gap-2 cursor-pointer"
+                      className="text-destructive focus:text-destructive flex items-center gap-2 cursor-pointer rounded-xl py-2 px-2.5 text-xs font-semibold"
                     >
                       <LogOut className="w-4 h-4" />
                       로그아웃
@@ -213,7 +224,7 @@ export default function Navbar() {
                       <AlertDialogTrigger asChild>
                         <DropdownMenuItem
                           onSelect={(e) => e.preventDefault()}
-                          className="text-muted-foreground hover:text-destructive focus:text-destructive flex items-center gap-2 cursor-pointer"
+                          className="text-muted-foreground hover:text-destructive focus:text-destructive flex items-center gap-2 cursor-pointer rounded-xl py-2 px-2.5 text-xs font-semibold"
                         >
                           <UserX className="w-4 h-4" />
                           회원 탈퇴
@@ -261,7 +272,7 @@ export default function Navbar() {
               <Button
                 size="sm"
                 onClick={() => (window.location.href = getLoginUrl())}
-                className="font-semibold"
+                className="h-9 px-4 rounded-xl font-bold bg-primary hover:bg-primary/90 text-primary-foreground text-xs transition-all cursor-pointer shadow-xs active:scale-95"
               >
                 로그인
               </Button>
