@@ -303,6 +303,52 @@ export async function getDb() {
           console.error("[Database] 하위 스터디 관련 테이블 DDL 싱크 실패:", studyErr);
         }
 
+        // 5-f. meeting_time_polls 및 meeting_time_responses 테이블 생성 및 인덱스 추가 (시간표 조율 기능)
+        try {
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "meeting_time_polls" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "groupId" integer,
+              "studyId" integer,
+              "title" varchar(200) NOT NULL,
+              "dates" jsonb NOT NULL,
+              "timeRangeStart" varchar(5) DEFAULT '09:00' NOT NULL,
+              "timeRangeEnd" varchar(5) DEFAULT '22:00' NOT NULL,
+              "status" varchar(20) DEFAULT 'open' NOT NULL,
+              "creatorId" integer NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL,
+              "updatedAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+          await _db!.execute(sql`
+            CREATE INDEX IF NOT EXISTS "meeting_time_polls_groupId_idx" ON "meeting_time_polls" ("groupId");
+          `);
+          await _db!.execute(sql`
+            CREATE INDEX IF NOT EXISTS "meeting_time_polls_studyId_idx" ON "meeting_time_polls" ("studyId");
+          `);
+
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "meeting_time_responses" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "pollId" integer NOT NULL,
+              "userId" integer NOT NULL,
+              "userName" varchar(50) NOT NULL,
+              "availability" jsonb NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL,
+              "updatedAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+          await _db!.execute(sql`
+            CREATE INDEX IF NOT EXISTS "meeting_time_responses_pollId_idx" ON "meeting_time_responses" ("pollId");
+          `);
+          await _db!.execute(sql`
+            CREATE INDEX IF NOT EXISTS "meeting_time_responses_userId_idx" ON "meeting_time_responses" ("userId");
+          `);
+          console.log("[Database] 시간표 조율 관련 테이블 DDL 싱크 완료");
+        } catch (pollsErr) {
+          console.error("[Database] 시간표 조율 관련 테이블 DDL 싱크 실패:", pollsErr);
+        }
+
         // 6. 학사일정 및 공휴일 자동 시딩
           try {
             const eventCountResult = await _db!.execute(sql`

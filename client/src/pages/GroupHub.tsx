@@ -445,31 +445,31 @@ export default function GroupHub() {
                   </div>
 
                   {/* Dashboard Tab Buttons */}
-                  <div className="flex border-b border-border bg-muted/10 px-4">
+                  <div className="flex border-b border-border bg-muted/10 px-4 overflow-x-auto scrollbar-hide flex-nowrap gap-1">
                     <button
                       onClick={() => setActiveTab("chat")}
-                      className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${activeTab === "chat" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`flex items-center gap-2 px-4 py-3.5 text-sm font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "chat" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
                       <MessageSquare className="w-4.5 h-4.5" />
                       소통 창구 (대화/공지)
                     </button>
                     <button
                       onClick={() => setActiveTab("calendar")}
-                      className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${activeTab === "calendar" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`flex items-center gap-2 px-4 py-3.5 text-sm font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "calendar" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
                       <Calendar className="w-4.5 h-4.5" />
                       그룹 일정 관리
                     </button>
                     <button
                       onClick={() => setActiveTab("files")}
-                      className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${activeTab === "files" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`flex items-center gap-2 px-4 py-3.5 text-sm font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "files" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
                       <FolderOpen className="w-4.5 h-4.5" />
                       자료실 (파일 공유)
                     </button>
                     <button
                       onClick={() => setActiveTab("studies")}
-                      className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${activeTab === "studies" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`flex items-center gap-2 px-4 py-3.5 text-sm font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "studies" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
                       <ListTodo className="w-4.5 h-4.5" />
                       소모임 / 스터디
@@ -479,7 +479,7 @@ export default function GroupHub() {
                         setActiveTab("timepolls");
                         setSelectedTimePollId(null);
                       }}
-                      className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${activeTab === "timepolls" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`flex items-center gap-2 px-4 py-3.5 text-sm font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "timepolls" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                     >
                       <Clock className="w-4.5 h-4.5" />
                       시간 조율 투표
@@ -487,7 +487,7 @@ export default function GroupHub() {
                     {(selectedGroup.isLeader || user?.role === "admin") && (
                       <button
                         onClick={() => setActiveTab("members")}
-                        className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${activeTab === "members" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                        className={`flex items-center gap-2 px-4 py-3.5 text-sm font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "members" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
                       >
                         <Settings className="w-4.5 h-4.5" />
                         지위 및 멤버 관리
