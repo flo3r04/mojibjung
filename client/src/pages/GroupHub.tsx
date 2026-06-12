@@ -904,8 +904,8 @@ export default function GroupHub() {
 
       {/* Modal 1: Create Custom Role */}
       <Dialog open={roleModalOpen} onOpenChange={setRoleModalOpen}>
-        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl">
-          <DialogHeader>
+        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pr-6">
             <DialogTitle className="text-xl font-black text-foreground flex items-center gap-2">
               <Shield className="w-5.5 h-5.5 text-primary" />
               새로운 지위 생성
@@ -973,8 +973,8 @@ export default function GroupHub() {
 
       {/* Modal 2: Create Group Calendar Event */}
       <Dialog open={eventModalOpen} onOpenChange={setEventModalOpen}>
-        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl">
-          <DialogHeader>
+        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pr-6">
             <DialogTitle className="text-xl font-black text-foreground flex items-center gap-2">
               <Calendar className="w-5.5 h-5.5 text-primary" />
               그룹 전용 일정 추가
@@ -1072,8 +1072,8 @@ export default function GroupHub() {
 
       {/* Modal 3: Create Announcement */}
       <Dialog open={noticeModalOpen} onOpenChange={setNoticeModalOpen}>
-        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl">
-          <DialogHeader>
+        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pr-6">
             <DialogTitle className="text-xl font-black text-foreground flex items-center gap-2">
               <Megaphone className="w-5.5 h-5.5 text-primary" />
               공지사항 올리기
@@ -1123,8 +1123,8 @@ export default function GroupHub() {
 
       {/* Modal 4: Group Archiving Portfolio */}
       <Dialog open={archiveModalOpen} onOpenChange={setArchiveModalOpen}>
-        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl">
-          <DialogHeader>
+        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pr-6">
             <DialogTitle className="text-xl font-black text-foreground flex items-center gap-2">
               <Archive className="w-5.5 h-5.5 text-rose-600" />
               그룹 활동 종료 및 아카이브 발행
@@ -1723,8 +1723,8 @@ function GroupFilesSection({
 
       {/* 파일 업로드 모달창 */}
       <Dialog open={uploadModalOpen} onOpenChange={handleOpenChange}>
-        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl">
-          <DialogHeader>
+        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pr-6">
             <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
               <UploadCloud className="w-5.5 h-5.5 text-primary" />
               자료 업로드 등록
@@ -1823,6 +1823,7 @@ function GroupStudiesSection({
   const [newStudyName, setNewStudyName] = useState("");
   const [newStudyDesc, setNewStudyDesc] = useState("");
   const [newStudyLeaderId, setNewStudyLeaderId] = useState<number | null>(null);
+  const [leaderSearchQuery, setLeaderSearchQuery] = useState("");
 
   const currentStudy = studies.find((s) => s.id === selectedStudyId);
   const isStudyLeader = currentStudy?.leaderId === user?.id;
@@ -1835,6 +1836,7 @@ function GroupStudiesSection({
       setNewStudyName("");
       setNewStudyDesc("");
       setNewStudyLeaderId(null);
+      setLeaderSearchQuery("");
       toast.success("소모임 스터디가 개설되었습니다.");
     },
     onError: (err) => toast.error(err.message),
@@ -1943,8 +1945,8 @@ function GroupStudiesSection({
 
       {/* 스터디 개설 모달창 */}
       <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
-        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl">
-          <DialogHeader>
+        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pr-6">
             <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
               <Plus className="w-5.5 h-5.5 text-primary" />
               신규 스터디/소모임 개설
@@ -1979,6 +1981,12 @@ function GroupStudiesSection({
 
             <div className="space-y-1.5 flex flex-col">
               <label className="text-[11px] font-black text-muted-foreground">스터디장 임명</label>
+              <Input
+                value={leaderSearchQuery}
+                onChange={(e) => setLeaderSearchQuery(e.target.value)}
+                placeholder="이름 또는 학번으로 스터디장 검색..."
+                className="rounded-xl font-bold h-9 border-border bg-muted/20 focus-visible:ring-primary mb-1.5 text-xs animate-fadeIn"
+              />
               <select
                 value={newStudyLeaderId ?? ""}
                 onChange={(e) => setNewStudyLeaderId(Number(e.target.value))}
@@ -1986,11 +1994,19 @@ function GroupStudiesSection({
                 required
               >
                 <option value="">-- 스터디장 선택 --</option>
-                {parentMembers.map((m: any) => (
-                  <option key={m.userId} value={m.userId}>
-                    {m.realName ?? m.name} ({m.studentId ? `${m.studentId.substring(2,4)}학번` : "일반"})
-                  </option>
-                ))}
+                {parentMembers
+                  .filter((m: any) => {
+                    if (m.userId === newStudyLeaderId) return true;
+                    const name = m.realName ?? m.name ?? "";
+                    const studentId = m.studentId ?? "";
+                    return name.toLowerCase().includes(leaderSearchQuery.toLowerCase()) ||
+                           studentId.toLowerCase().includes(leaderSearchQuery.toLowerCase());
+                  })
+                  .map((m: any) => (
+                    <option key={m.userId} value={m.userId}>
+                      {m.realName ?? m.name} ({m.studentId ? `${m.studentId.substring(2,4)}학번` : "일반"})
+                    </option>
+                  ))}
               </select>
             </div>
 
@@ -2053,6 +2069,7 @@ function SubStudyWorkspace({
   // 스터디 멤버 편집 모달
   const [manageMembersModalOpen, setManageMembersModalOpen] = useState(false);
   const [selectedMemberIds, setSelectedMemberIds] = useState<number[]>([]);
+  const [memberSearchQuery, setMemberSearchQuery] = useState("");
 
   // 회의록 상세 정보 조회
   const { data: minuteDetail } = trpc.group.getSubStudyMinuteDetail.useQuery(
@@ -2149,6 +2166,7 @@ function SubStudyWorkspace({
 
   const handleOpenManageMembers = () => {
     setSelectedMemberIds(studyMembers.map((m) => m.userId));
+    setMemberSearchQuery("");
     setManageMembersModalOpen(true);
   };
 
@@ -2305,8 +2323,8 @@ function SubStudyWorkspace({
         <DialogContent className="rounded-3xl border border-border max-w-lg shadow-2xl overflow-y-auto max-h-[85vh]">
           {minuteDetail ? (
             <>
-              <DialogHeader>
-                <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground mb-1 select-none">
+              <DialogHeader className="pr-6">
+                <div className="flex items-center justify-between text-[10px] font-bold text-muted-foreground mb-1 select-none pr-6">
                   <span>회의일자: {new Date(minuteDetail.meetingDate).toLocaleDateString("ko-KR")}</span>
                   <span>작성자: {minuteDetail.authorName}</span>
                 </div>
@@ -2372,8 +2390,8 @@ function SubStudyWorkspace({
 
       {/* 회의록 작성 및 수정 모달 */}
       <Dialog open={minuteModalOpen} onOpenChange={setMinuteModalOpen}>
-        <DialogContent className="rounded-3xl border border-border max-w-lg shadow-2xl">
-          <DialogHeader>
+        <DialogContent className="rounded-3xl border border-border max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pr-6">
             <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
               <Notebook className="w-5.5 h-5.5 text-primary" />
               {editingMinuteId ? "회의록 수정" : "신규 회의록 작성"}
@@ -2441,8 +2459,8 @@ function SubStudyWorkspace({
 
       {/* 스터디 팀원 구성 모달 */}
       <Dialog open={manageMembersModalOpen} onOpenChange={setManageMembersModalOpen}>
-        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl max-h-[80vh] flex flex-col">
-          <DialogHeader className="shrink-0">
+        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl max-h-[85vh] flex flex-col">
+          <DialogHeader className="shrink-0 pr-6">
             <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
               <Edit className="w-5.5 h-5.5 text-primary" />
               스터디 팀원 지정 및 관리
@@ -2452,47 +2470,63 @@ function SubStudyWorkspace({
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto space-y-2.5 my-3 pr-1 text-xs max-h-[45vh]">
-            {parentMembers.map((m: any) => {
-              const isStudyLeaderSelf = m.userId === study.leaderId;
-              const isChecked = selectedMemberIds.includes(m.userId);
-              return (
-                <div
-                  key={m.userId}
-                  onClick={() => toggleMemberSelection(m.userId)}
-                  className={`p-3 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
-                    isChecked ? "border-primary bg-primary/5 font-bold" : "border-border hover:bg-muted/10"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="bg-primary/10 text-primary font-black text-xs">
-                        {m.realName?.charAt(0) ?? m.name?.charAt(0) ?? "M"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs text-foreground">{m.realName ?? m.name}</span>
-                        {isStudyLeaderSelf && (
-                          <Badge className="bg-amber-500 text-white font-bold text-[8px] px-1 py-0.2 shrink-0">스터디장</Badge>
-                        )}
-                      </div>
-                      <span className="text-[9px] font-semibold text-muted-foreground/80 block mt-0.5">
-                        {m.studentId ? `${m.studentId.substring(2, 4)}학번` : "일반"}
-                      </span>
-                    </div>
-                  </div>
+          <div className="shrink-0 mb-1.5 mt-2 select-none">
+            <Input
+              value={memberSearchQuery}
+              onChange={(e) => setMemberSearchQuery(e.target.value)}
+              placeholder="이름 또는 학번으로 팀원 검색..."
+              className="rounded-xl font-bold h-9 border-border bg-muted/20 focus-visible:ring-primary text-xs"
+            />
+          </div>
 
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    readOnly
-                    disabled={isStudyLeaderSelf}
-                    className="w-4 h-4 rounded accent-primary border-border cursor-pointer"
-                  />
-                </div>
-              );
-            })}
+          <div className="flex-1 overflow-y-auto space-y-2.5 my-3 pr-1 text-xs">
+            {parentMembers
+              .filter((m: any) => {
+                const name = m.realName ?? m.name ?? "";
+                const studentId = m.studentId ?? "";
+                return name.toLowerCase().includes(memberSearchQuery.toLowerCase()) ||
+                       studentId.toLowerCase().includes(memberSearchQuery.toLowerCase());
+              })
+              .map((m: any) => {
+                const isStudyLeaderSelf = m.userId === study.leaderId;
+                const isChecked = selectedMemberIds.includes(m.userId);
+                return (
+                  <div
+                    key={m.userId}
+                    onClick={() => toggleMemberSelection(m.userId)}
+                    className={`p-3 rounded-xl border transition-all flex items-center justify-between cursor-pointer ${
+                      isChecked ? "border-primary bg-primary/5 font-bold" : "border-border hover:bg-muted/10"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-8 h-8">
+                        <AvatarFallback className="bg-primary/10 text-primary font-black text-xs">
+                          {m.realName?.charAt(0) ?? m.name?.charAt(0) ?? "M"}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs text-foreground">{m.realName ?? m.name}</span>
+                          {isStudyLeaderSelf && (
+                            <Badge className="bg-amber-500 text-white font-bold text-[8px] px-1 py-0.2 shrink-0">스터디장</Badge>
+                          )}
+                        </div>
+                        <span className="text-[9px] font-semibold text-muted-foreground/80 block mt-0.5">
+                          {m.studentId ? `${m.studentId.substring(2, 4)}학번` : "일반"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      readOnly
+                      disabled={isStudyLeaderSelf}
+                      className="w-4 h-4 rounded accent-primary border-border cursor-pointer"
+                    />
+                  </div>
+                );
+              })}
           </div>
 
           <DialogFooter className="pt-2 gap-2 shrink-0 border-t border-border/30 mt-3 pt-3">
