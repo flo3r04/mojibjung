@@ -308,6 +308,34 @@ export const appRouter = router({
         return { success: true };
       }),
 
+    // 테스트 및 복구용: 로그인된 본인 계정을 가입 대기(pending) 상태로 강제 초기화
+    resetSelfToPending: protectedProcedure.mutation(async ({ ctx }) => {
+      const dbInstance = await getDb();
+      if (!dbInstance) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "데이터베이스 서버에 연결할 수 없습니다.",
+        });
+      }
+
+      await dbInstance
+        .update(users)
+        .set({
+          status: "pending",
+          realName: null,
+          studentId: null,
+          admissionYear: null,
+          verifiedEmail: null,
+        })
+        .where(eq(users.id, ctx.user.id));
+
+      await dbInstance
+        .delete(emailVerifications)
+        .where(eq(emailVerifications.userId, ctx.user.id));
+
+      return { success: true };
+    }),
+
     // ───────────────────────────────────────────────────────────────────────
     // 회원가입 완료 — 실명/학번/학과/입학년도로 PENDING → VERIFIED 전환
     // ───────────────────────────────────────────────────────────────────────

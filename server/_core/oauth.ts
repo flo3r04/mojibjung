@@ -127,7 +127,7 @@ export function registerOAuthRoutes(app: Express) {
           metadata: { status: user.status, loginMethod: "kakao" },
         });
         if (user.status === "pending") {
-          destination = "/onboarding";
+          destination = "/profile?setup=true";
         } else {
           destination = "/profile";
         }

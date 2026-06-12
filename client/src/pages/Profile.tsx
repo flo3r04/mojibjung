@@ -148,6 +148,25 @@ export default function Profile() {
     onError: (err) => toast.error(err.message || "프로필 저장 실패"),
   });
 
+  // 테스트 및 디버깅용 계정 리셋 뮤테이션
+  const resetMutation = trpc.auth.resetSelfToPending.useMutation({
+    onSuccess: () => {
+      toast.success("계정 인증 상태가 초기화되었습니다. 이메일 인증을 다시 시작합니다.");
+      utils.auth.me.invalidate();
+      setStep("email");
+      setIsEmailSent(false);
+      setIsEmailVerified(false);
+      setCodeInput("");
+      setEmailId("");
+      setRealName("");
+      setStudentId("");
+      window.location.reload();
+    },
+    onError: (err) => {
+      toast.error(err.message || "계정 초기화에 실패했습니다.");
+    },
+  });
+
   // 이미지 업로드
   const uploadMutation = trpc.upload.image.useMutation({
     onSuccess: (data) => {
@@ -743,8 +762,11 @@ export default function Profile() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="font-semibold text-xs text-muted-foreground">로그인 닉네임 (카카오)</Label>
-                  <Input value={user?.name ?? ""} disabled className="bg-muted h-12 rounded-xl text-muted-foreground font-medium" />
+                  <Label className="font-semibold text-xs text-muted-foreground">학교 인증 실명</Label>
+                  <Input value={user?.realName ?? "미인증"} disabled className="bg-muted h-12 rounded-xl text-muted-foreground font-semibold" />
+                  <p className="text-[10px] text-muted-foreground px-1">
+                    실명은 학교 이메일 인증(학적 등록) 시 기입한 이름을 사용하며 변경할 수 없습니다.
+                  </p>
                 </div>
 
                 {user?.status === "verified" && (
@@ -939,6 +961,25 @@ export default function Profile() {
                       <Link href="/" className="text-xs text-muted-foreground hover:text-primary transition-colors">
                         나중에 할게요 (홈으로 가기)
                       </Link>
+                    </div>
+                  )}
+
+                  {/* 개발 디버깅용 리셋 버튼 (Verified 상태 유저에게만 노출) */}
+                  {user?.status === "verified" && (
+                    <div className="pt-4 border-t border-border mt-6">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          if (confirm("이메일 인증을 처음부터 다시 진행하기 위해 계정 인증 상태를 초기화하시겠습니까?")) {
+                            resetMutation.mutate();
+                          }
+                        }}
+                        disabled={resetMutation.isPending}
+                        className="w-full h-11 border-destructive/30 text-destructive hover:bg-destructive/10 rounded-xl text-xs font-bold"
+                      >
+                        {resetMutation.isPending ? "초기화 진행 중..." : "⚠️ 개발용: 학교 메일 인증 처음부터 다시 테스트하기 (계정 초기화)"}
+                      </Button>
                     </div>
                   )}
                 </div>
