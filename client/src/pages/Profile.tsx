@@ -348,7 +348,7 @@ export default function Profile() {
 
   return (
     <Layout>
-      <div className="container py-8 max-w-2xl mx-auto">
+      <div className="container py-8 max-w-3xl mx-auto">
         
         {/* Onboarding Header */}
         <div className="flex flex-col items-center mb-8 text-center">
@@ -452,21 +452,21 @@ export default function Profile() {
              * [Step 1] 이메일 인증 단계 (차별화된 입력 잠금 및 OTP Box UI)
              * ───────────────────────────────────────────────────────────────────────────── */}
             {step === "email" && (
-              <div className="space-y-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                    <Mail className="w-5 h-5" />
+              <div className="space-y-8">
+                <div className="flex items-center gap-2.5 mb-2">
+                  <div className="p-2.5 rounded-xl bg-primary/10 text-primary">
+                    <Mail className="w-6 h-6" />
                   </div>
-                  <h2 className="text-xl font-black tracking-tight">학교 메일로만 가입이 가능합니다</h2>
+                  <h2 className="text-2xl font-black tracking-tight">학교 메일로만 가입이 가능합니다</h2>
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
+                <p className="text-sm text-muted-foreground leading-relaxed">
                   '모집중' 서비스는 안전한 교내 네트워크를 보장하기 위해 한국외대 글로벌캠퍼스 재학생 공식 웹메일(<b>@hufs.ac.kr</b>) 도메인 외의 이메일(네이버, Gmail 등) 가입을 완전히 제한하고 있습니다.
                 </p>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email-id" className="font-semibold text-xs text-muted-foreground">학교 이메일 아이디</Label>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1 flex items-center rounded-xl border border-input bg-card focus-within:ring-2 focus-within:ring-primary/20 transition-all overflow-hidden h-12">
+                <div className="space-y-3">
+                  <Label htmlFor="email-id" className="font-semibold text-sm text-muted-foreground">학교 이메일 아이디</Label>
+                  <div className="flex gap-3">
+                    <div className="relative flex-1 flex items-center rounded-xl border border-input bg-card focus-within:ring-2 focus-within:ring-primary/20 transition-all overflow-hidden h-14">
                       <Input
                         id="email-id"
                         placeholder="이메일 아이디 입력"
@@ -477,12 +477,12 @@ export default function Profile() {
                           setEmailId(val);
                         }}
                         disabled={isEmailSent && isTimerActive}
-                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-full font-semibold flex-1 px-4 bg-transparent text-sm"
+                        className="border-0 focus-visible:ring-0 focus-visible:ring-offset-0 h-full font-semibold flex-1 px-4 bg-transparent text-base"
                       />
                       
                       {/* 차별화된 도메인 잠금(Locked Suffix) 배지 */}
-                      <div className="flex items-center gap-1.5 px-3 py-1 mr-2 bg-muted rounded-lg text-xs font-bold text-muted-foreground select-none border border-border">
-                        <Lock className="w-3 h-3 text-primary" />
+                      <div className="flex items-center gap-1.5 px-4 py-2 mr-2 bg-muted rounded-lg text-sm font-bold text-muted-foreground select-none border border-border">
+                        <Lock className="w-3.5 h-3.5 text-primary" />
                         <span>@hufs.ac.kr</span>
                       </div>
                     </div>
@@ -491,7 +491,7 @@ export default function Profile() {
                       type="button"
                       onClick={handleSendEmail}
                       disabled={sendEmailMutation.isPending || (isEmailSent && isTimerActive && timer > 280)}
-                      className="h-12 px-5 font-bold rounded-xl bg-primary hover:bg-primary/95 text-white transition-all shadow-[0_4px_12px_rgba(59,130,246,0.2)]"
+                      className="h-14 px-6 font-extrabold text-base rounded-xl bg-primary hover:bg-primary/95 text-white transition-all shadow-[0_4px_12px_rgba(59,130,246,0.2)]"
                     >
                       {sendEmailMutation.isPending ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -502,20 +502,20 @@ export default function Profile() {
                       )}
                     </Button>
                   </div>
-                  <p className="text-[10px] text-muted-foreground px-1">
+                  <p className="text-xs text-muted-foreground px-1">
                     골뱅이(@) 기호는 자동으로 처리됩니다. 이메일 아이디 부분만 적어주세요.
                   </p>
                 </div>
 
                 {isEmailSent && (
-                  <div className="space-y-4 p-5 bg-muted/40 rounded-2xl border border-border/80 animate-in slide-in-from-top-4 duration-300">
+                  <div className="space-y-5 p-6 bg-muted/40 rounded-2xl border border-border/80 animate-in slide-in-from-top-4 duration-300">
                     <div className="flex items-center justify-between">
-                      <Label className="font-semibold text-xs text-muted-foreground flex items-center gap-1.5">
-                        <Key className="w-3.5 h-3.5 text-primary" />
+                      <Label className="font-semibold text-sm text-muted-foreground flex items-center gap-1.5">
+                        <Key className="w-4 h-4 text-primary" />
                         보안 코드 6자리 입력
                       </Label>
                       {isTimerActive && (
-                        <span className="text-xs font-bold text-destructive flex items-center gap-1 bg-destructive/10 px-2 py-0.5 rounded-full">
+                        <span className="text-xs font-bold text-destructive flex items-center gap-1 bg-destructive/10 px-2.5 py-1 rounded-full">
                           <Timer className="w-3.5 h-3.5 animate-pulse" />
                           {formattedTime}
                         </span>
@@ -525,7 +525,7 @@ export default function Profile() {
                     {/* ───────────────────────────────────────────────────────────────────────
                      * 차별화된 6자리 개별 OTP 박스 UI
                      * ─────────────────────────────────────────────────────────────────────── */}
-                    <div className="relative py-2 flex justify-center">
+                    <div className="relative py-3 flex justify-center">
                       {/* 실제 입력을 받는 숨겨진 input */}
                       <input
                         ref={otpInputRef}
@@ -541,14 +541,14 @@ export default function Profile() {
                       />
                       
                       {/* 비주얼 6진수 박스 */}
-                      <div className="flex gap-2" onClick={() => otpInputRef.current?.focus()}>
+                      <div className="flex gap-3" onClick={() => otpInputRef.current?.focus()}>
                         {Array.from({ length: 6 }).map((_, index) => {
                           const char = codeInput[index] || "";
                           const isFocused = isTimerActive && (codeInput.length === index || (codeInput.length === 6 && index === 5));
                           return (
                             <div
                               key={index}
-                              className={`w-12 h-14 rounded-xl border-2 flex items-center justify-center text-xl font-black transition-all ${
+                              className={`w-14 h-16 rounded-xl border-2 flex items-center justify-center text-3xl font-black transition-all ${
                                 isFocused 
                                   ? "border-primary bg-card text-primary shadow-[0_0_10px_rgba(59,130,246,0.3)] scale-105" 
                                   : char 
@@ -558,7 +558,7 @@ export default function Profile() {
                             >
                               {char}
                               {isFocused && !char && (
-                                <span className="w-0.5 h-6 bg-primary animate-pulse" />
+                                <span className="w-0.5 h-7 bg-primary animate-pulse" />
                               )}
                             </div>
                           );
@@ -570,7 +570,7 @@ export default function Profile() {
                       type="button"
                       onClick={handleVerifyCode}
                       disabled={verifyCodeMutation.isPending || !isTimerActive || codeInput.length !== 6}
-                      className="w-full h-12 font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-[0_4px_12px_rgba(16,185,129,0.2)] transition-all"
+                      className="w-full h-14 font-extrabold text-base bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-[0_4px_12px_rgba(16,185,129,0.2)] transition-all"
                     >
                       {verifyCodeMutation.isPending ? (
                         <Loader2 className="w-4 h-4 animate-spin mr-2" />
@@ -580,14 +580,14 @@ export default function Profile() {
                     </Button>
 
                     {!isTimerActive && (
-                      <p className="text-[10px] text-destructive text-center font-bold">
+                      <p className="text-xs text-destructive text-center font-bold">
                         인증 대기 시간이 끝났습니다. 우측 상단 '코드 재전송'을 눌러주세요.
                       </p>
                     )}
                   </div>
                 )}
               </div>
-            )}
+            )}}
 
             {/* ─────────────────────────────────────────────────────────────────────────────
              * [Step 2] 학적 정보 입력 단계

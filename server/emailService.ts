@@ -158,7 +158,7 @@ export class EmailVerificationService {
    */
   public generateSecureOtp(): string {
     const randomBuffer = crypto.randomBytes(3);
-    const value = randomBuffer.readUInt24BE(0);
+    const value = randomBuffer.readUIntBE(0, 3);
     // 100,000 ~ 999,999 범위 내의 값 생성
     const otpNumber = (value % 900000) + 100000;
     return otpNumber.toString();
