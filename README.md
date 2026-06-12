@@ -7,20 +7,89 @@
 
 ## 목차
 
+- [최근 추가된 기능 타임라인 (테스트 가이드)](#최근-추가된-기능-타임라인-테스트-가이드)
 - [기술 스택](#기술-스택)
 - [프로젝트 구조](#프로젝트-구조)
 - [데이터베이스 스키마](#데이터베이스-스키마)
 - [백엔드 API](#백엔드-api)
 - [핵심 기술 설계 및 구현 원리](#핵심-기술-설계-및-구현-원리)
-- [주요 트러블슈팅 사례](#주요-트러블슈팅-사례)
-- [프론트엔드 페이지](#프론트엔드-페이지)
-- [주요 기능 및 구현 원리](#주요-기능-및-구현-원리)
-- [시작하기](#시작하기)
-- [👨‍💻 팀원 개발 가이드](#-팀원-개발-가이드-quick-start)
-- [환경 변수](#환경-변수)
-- [테스트](#테스트)
-- [배포](#배포)
-- [프로덕션 배포 전 체크리스트](#프로덕션-배포-전-체크리스트)
+
+---
+
+## 최근 추가된 기능 타임라인 (테스트 가이드)
+
+모집중 플랫폼에 최근 추가된 중요 신규 기능들을 최신순(역순) 타임라인으로 정리했습니다. 각 기능별 주요 테스트 시나리오와 연동 방식을 참고하여 검증을 진행할 수 있습니다.
+
+### 📅 1. 하위 스터디 및 주차별 회의록 관리 시스템 (Sub-Study & Meeting Minutes Workflow) - 2026.06 [최신]
+* **개요**: 동아리/학회(상위 그룹) 내부에 개별 스터디(하위 소그룹)를 개설하고, 각 스터디장들이 스터디 팀원을 지정/저장하여 전용 주차별 회의록 및 요약 문서를 관리할 수 있는 노션 스타일의 스터디 워크플로우 시스템입니다.
+* **주요 테스트 시나리오**:
+  1. **스터디 개설**: 상위 그룹의 리더(또는 어드민) 계정으로 로그인 후 **[그룹 허브] → [소모임/스터디]** 탭 진입. **"+ 신규 스터디 개설"** 버튼을 눌러 스터디를 추가하고 특정 회원을 스터디장으로 임명합니다.
+  2. **팀원 지정**: 해당 스터디장 계정으로 로그인한 후 워크스페이스의 **[팀원 구성]** 탭으로 진입합니다. 상위 그룹 단원 목록 중 스터디에 참여할 팀원들을 체크박스로 다중 선택한 후 **"팀원 구성 저장"**을 클릭합니다.
+  3. **회의록 작성 및 공유**: 스터디 소속원 계정으로 로그인 후 **[회의록 & 문서]** 탭에서 **"+ 회의록 작성"**을 클릭해 회의 일자, 제목, 내용을 입력하여 게재합니다.
+  4. **본문 열람 및 권한 격리**: 스터디원 및 그룹 리더가 등록된 회의록 리스트 카드를 클릭하여 팝업 모달로 상세 회고 내용을 확인합니다. 스터디에 소속되지 않은 일반 그룹원 계정으로 접속 시 해당 스터디 워크스페이스 진입 및 문서 조회가 차단되는지 확인합니다.
+* **주요 관련 파일**:
+  * 스키마: [drizzle/schema.ts](file:///c:/Users/songs/Desktop/깃허브/mojibjung/drizzle/schema.ts) (`groupStudies`, `groupStudyMembers`, `groupStudyMinutes` 정의)
+  * DB 쿼리: [server/db.ts](file:///c:/Users/songs/Desktop/깃허브/mojibjung/server/db.ts) (스터디 및 회의록 CRUD 함수 및 DDL 동기화 검증 레이어)
+  * 백엔드 API: [server/routers.ts](file:///c:/Users/songs/Desktop/깃허브/mojibjung/server/routers.ts) (`createSubStudy`, `updateSubStudyMembers`, `listSubStudyMinutes` 등 9개 API)
+  * 프론트엔드 UI: [client/src/pages/GroupHub.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/GroupHub.tsx) (`GroupStudiesSection`, `SubStudyWorkspace` 컴포넌트 추가)
+
+### 🎓 2. 그룹 활동 종료 및 아카이브 전시관 (Group Archiving & Showcase) - 2026.06
+* **개요**: 스터디나 동아리 학기가 끝났을 때 리더가 최종 회고록(회의록 링크, 성과 요약, 대표 이미지 등)을 입력하여 포트폴리오(아카이브)를 발행하고, 메인 홈에 박제하여 누구나 우수 그룹의 상위 포트폴리오를 조회할 수 있게 연동한 기능입니다.
+* **주요 테스트 시나리오**:
+  1. **아카이브 발행**: 그룹 리더 계정으로 **[그룹 허브] → [그룹 설정/아카이브]** 진입. **"그룹 활동 종료 및 아카이브 발행"**을 클릭하여 대표 사진(로컬 파일) 및 최종 회고록(수행 프로젝트 링크, 멤버 수, 대표 회고 등)을 채워 제출합니다.
+  2. **읽기 전용 상태 확인**: 발행 완료 즉시 해당 그룹 허브의 채팅창 입력란, 일정 추가, 글쓰기 버튼 등이 비활성화되어 완전한 **읽기 전용(Read-only)** 상태로 잠금 처리되는지 확인합니다.
+  3. **전시관 열람**: 로그아웃 혹은 일반 회원 계정으로 메인 홈 화면([Home.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/Home.tsx)) 하단으로 이동하여 **"우수 스터디 & 동아리 아카이브 전시관"**에 발행된 아카이브 카드를 확인하고, 클릭 시 상세 회고 팝업이 활성화되는지 검증합니다.
+* **주요 관련 파일**:
+  * [client/src/pages/GroupHub.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/GroupHub.tsx) (아카이브 발행 모달 및 권한 잠금 제어)
+  * [client/src/pages/Home.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/Home.tsx) (홈 화면 전시관 카드 슬라이더 및 아카이브 상세 모달)
+
+### 📁 3. 그룹 자료실 및 실제 로컬 파일 업로드 (Group Files & Local Upload) - 2026.06
+* **개요**: 동아리/스터디 부원 간 원활한 자료 공유를 위해 가상 텍스트가 아닌 실제 컴퓨터 하드디스크나 모바일 내 파일 저장소에서 파일(이미지, PDF, ZIP 등, 최대 10MB)을 업로드하고 내려받을 수 있는 클라우드 연동 업로드 시스템입니다.
+* **주요 테스트 시나리오**:
+  1. **로컬 파일 감지**: **[그룹 허브] → [자료실]** 탭 진입 후 **"파일 선택"** 버튼을 클릭하여 기기 내 실제 파일 하나를 선택합니다.
+  2. **실제 업로드**: 파일 크기 및 포맷이 자동 검출되어 인풋에 채워지면 **"업로드"**를 실행합니다. 백엔드에서 base64 직렬화 버퍼를 전송받아 Cloudinary 저장소에 실제 업로드 및 다운로드용 https URL을 받아오는 구조를 검증합니다.
+  3. **다운로드/삭제**: 자료실 리스트의 파일명을 클릭하여 다운로드창이 활성화되는지 확인하고, 본인이 올린 파일 우측의 **"삭제"** 버튼 작동 여부를 테스트합니다.
+* **주요 관련 파일**:
+  * [client/src/pages/GroupHub.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/GroupHub.tsx) (로컬 File Input 감지, base64 인코딩 및 UI 테이블 렌더링)
+  * [server/routers.ts](file:///c:/Users/songs/Desktop/깃허브/mojibjung/server/routers.ts) (바이너리 버퍼 스트림 업로드 API)
+
+### 🔔 4. 실시간 알림 센터 (Real-time Notification Center) - 2026.06
+* **개요**: 쪽지 수신, 지원서 합격/거절 처리, 내 모집글 댓글/답글 등록, 소속 그룹 내 공지 및 캘린더 등록 등의 액션이 발생할 때 해당 대상자에게 실시간 알림을 생성하고 바로가기 이동을 보장하는 네비게이션 알림판입니다.
+* **주요 테스트 시나리오**:
+  1. **트리거 생성**: A 계정으로 B 계정의 글에 댓글을 달거나, B 계정으로 온 1:1 쪽지를 전송해 봅니다.
+  2. **배지 및 애니메이션**: B 계정으로 접속 시 상단 네비게이션 바([Navbar.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/components/Navbar.tsx)) 우측 상단 종 모양(🔔) 아이콘 옆에 미확인 알림 숫자 배지가 생기며, 맥박(Pulse) 주기 애니메이션이 역동적으로 작동하는지 확인합니다.
+  3. **알림 읽음 및 바로가기**: 종 아이콘을 클릭하여 드롭다운 알림 팝오버를 열고, 개별 알림 클릭 시 읽음 동기화(`isRead = true`)가 백엔드에 즉각 반영되는지 확인하며, 동시에 해당 게시글이나 쪽지방으로 바로 랜딩되는지 테스트합니다.
+* **주요 관련 파일**:
+  * [client/src/components/Navbar.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/components/Navbar.tsx) (알림 내역 팝오버 렌더링 및 읽음 처리)
+  * [server/routers.ts](file:///c:/Users/songs/Desktop/깃허브/mojibjung/server/routers.ts) (알림 리스트 조회 및 일괄 읽음 처리 API)
+
+### 👤 5. 실명 표기 버그 수정 및 실명 데이터 연동 고도화 (Real Name Integration) - 2026.06
+* **개요**: 익명성 문제를 방지하고 학교 실명 커뮤니티로서의 신뢰성을 지키기 위해, 플랫폼 내 모든 유저 이름 출력 공간에 닉네임 대신 가입 시 인증된 실명(`users.realName`)이 최우선 표시되도록 조인 쿼리를 수정 보완했습니다.
+* **주요 테스트 시나리오**:
+  1. 실명 인증이 완료된 계정(예: 홍길동)으로 모집글에 신청서를 작성하거나 대화방 채팅 메시지를 전송합니다.
+  2. 모집 작성자 관리자 페이지([PostManage.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/PostManage.tsx)), 그룹 허브 단원 목록, 쪽지방 등 모든 노출 영역에서 닉네임 대신 `홍길동` 실명이 명확하게 연동되어 표기되는지 대조 확인합니다.
+* **주요 관련 파일**:
+  * [server/db.ts](file:///c:/Users/songs/Desktop/깃허브/mojibjung/server/db.ts) (SQL `coalesce(users.realName, users.name)` 구문 핵심 조인 쿼리 전면 배치)
+  * [client/src/pages/PostManage.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/PostManage.tsx) (지원자 관리창 실명 표기)
+
+### 🗓️ 6. 한국외대 공식 학사일정 자동 시딩 및 홈 화면 D-Day 연동 (HUFS Calendar & D-Day Banner) - 2026.06
+* **개요**: 한국외대 공식 학사일정 및 공휴일 데이터베이스 자동 주입 및 메인 배너의 동적 D-Day 표시 연동 기능입니다.
+* **주요 테스트 시나리오**:
+  1. **D-Day 실시간 계산**: 메인 홈 화면([Home.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/Home.tsx)) 상단 배너에서 현재 날짜 이후에 있는 가장 임박한 학사일정(예: 중간고사, 기말고사, 종강일 등)을 자동 감지해 D-몇일 남았는지를 동적으로 그려주는지 확인합니다.
+  2. **달력 연동**: 캘린더 페이지([CalendarPage.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/CalendarPage.tsx))에 들어가 시딩된 학사일정들이 보라색 범례 카테고리로 달력 그리드에 정확히 표시되는지 검증합니다.
+* **주요 관련 파일**:
+  * [drizzle/seeds/002_calendar_events.sql](file:///c:/Users/songs/Desktop/깃허브/mojibjung/drizzle/seeds/002_calendar_events.sql) (학사일정 1년치 정밀 SQL 데이터)
+  * [client/src/pages/Home.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/Home.tsx) (D-Day 배너 렌더링 로직)
+
+### 🗳️ 7. 캘린더 RSVP 투표, 테마 색상 커스텀, 데일리 투두 위젯 (RSVP & Todo Widget) - 2026.06
+* **개요**: 캘린더 일정 참석 공유 투표 시스템, 달력 테마 컬러 개인별 커스텀 지정, 및 데일리 투두 리스트 연동 기능입니다.
+* **주요 테스트 시나리오**:
+  1. **RSVP 투표**: 달력 혹은 그룹 허브의 일정 뷰에서 RSVP(참석/불참/보류) 선택 버튼을 눌러 상태 투표를 진행합니다. 운영진 계정으로 **"리더 권한: 상세 명단 보기"**를 클릭하여 참석/불참/보류에 투표한 전체 명단을 실시간으로 확인합니다.
+  2. **카테고리 컬러 변경**: 일정 추가/수정 사이드바 창에서 원하는 색상 팔레트 서클을 선택하면 달력 수평 일정 바에 해당 커스텀 테마 색상이 즉시 연동되는지 검증합니다.
+  3. **투두리스트 체크**: 우측 데일리 패널의 체크박스 상태가 캘린더 진행률에 실시간 매핑되는지 확인합니다.
+* **주요 관련 파일**:
+  * [client/src/pages/CalendarPage.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/CalendarPage.tsx) (달력 그리드, RSVP 버튼 컴포넌트, 카테고리 컬러 에디터)
+  * [client/src/pages/TodoPage.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/TodoPage.tsx) (투두 전용 개별 페이지 분리 연동)
 
 ---
 
