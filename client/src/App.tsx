@@ -35,9 +35,10 @@ function OnboardingGuard({ children }: { children: React.ReactNode }) {
     },
   });
 
-  // 가입 대기 유저 강제 온보딩 리다이렉션
+  // 미인증 또는 학적 정보 누락 유저 강제 온보딩 리다이렉션
   useEffect(() => {
-    if (user && user.status === "pending" && location !== "/profile") {
+    const isNotFullyVerified = user && (user.status === "pending" || !user.realName || !user.verifiedEmail);
+    if (isNotFullyVerified && location !== "/profile") {
       setLocation("/profile?setup=true");
     }
   }, [user, location, setLocation]);
@@ -66,8 +67,9 @@ function OnboardingGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // 가입 대기 상태인데 다른 주소로 가려 할 때 렌더링 중지
-  if (user && user.status === "pending" && location !== "/profile") {
+  // 미인증 상태인데 다른 주소로 가려 할 때 렌더링 중지
+  const isNotFullyVerified = user && (user.status === "pending" || !user.realName || !user.verifiedEmail);
+  if (isNotFullyVerified && location !== "/profile") {
     return null;
   }
 
