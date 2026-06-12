@@ -1,7 +1,8 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { useAuth } from "./_core/hooks/useAuth";
@@ -22,16 +23,24 @@ import BlockManage from "./pages/BlockManage";
 import GroupHub from "./pages/GroupHub";
 
 /**
- * OnboardingGuard — 계정 정지 여부만 체크하는 가드
+ * OnboardingGuard — 계정 정지 여부 및 가입 보류(pending) 상태를 체크하는 가드
  */
 function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const [location, setLocation] = useLocation();
 
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
       window.location.href = "/";
     },
   });
+
+  // 가입 대기 유저 강제 온보딩 리다이렉션
+  useEffect(() => {
+    if (user && user.status === "pending" && location !== "/profile") {
+      setLocation("/profile?setup=true");
+    }
+  }, [user, location, setLocation]);
 
   if (user && user.status === "disabled") {
     return (
@@ -55,6 +64,11 @@ function OnboardingGuard({ children }: { children: React.ReactNode }) {
         </div>
       </div>
     );
+  }
+
+  // 가입 대기 상태인데 다른 주소로 가려 할 때 렌더링 중지
+  if (user && user.status === "pending" && location !== "/profile") {
+    return null;
   }
 
   return <>{children}</>;

@@ -61,6 +61,9 @@ import {
   groupChatMessages,
   GroupChatMessage,
   InsertGroupChatMessage,
+  emailVerifications,
+  EmailVerification,
+  InsertEmailVerification,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -1196,6 +1199,27 @@ export async function completeRegistrationSimplified(input: {
   if (!db) throw new Error("DB_UNAVAILABLE");
 
   return db.transaction(async tx => {
+    // 0) 이메일 인증 통과 여부 교차 검증 (최근 15분 이내 성공하고 소모되지 않은 건 조회)
+    const fifteenMinutesAgo = new Date(Date.now() - 15 * 60_000);
+    const verifications = await tx
+      .select()
+      .from(emailVerifications)
+      .where(
+        and(
+          eq(emailVerifications.userId, input.userId),
+          isNotNull(emailVerifications.verifiedAt),
+          isNull(emailVerifications.consumedAt),
+          gte(emailVerifications.verifiedAt, fifteenMinutesAgo)
+        )
+      )
+      .orderBy(desc(emailVerifications.createdAt))
+      .limit(1);
+
+    if (verifications.length === 0) {
+      throw new Error("EMAIL_NOT_VERIFIED");
+    }
+    const verifiedEmailAddr = verifications[0].email;
+
     // 1) 학번 중복 확인 (partial unique 가 있지만 명시 에러 메시지를 위해 사전 체크)
     const sidRows = await tx
       .select({ id: users.id })
@@ -1206,7 +1230,7 @@ export async function completeRegistrationSimplified(input: {
       throw new Error("STUDENT_ID_TAKEN");
     }
 
-    // 2) users 업데이트 → status='verified'
+    // 2) users 업데이트 → status='verified' 및 verifiedEmail 등록
     const updated = await tx
       .update(users)
       .set({
@@ -1214,12 +1238,19 @@ export async function completeRegistrationSimplified(input: {
         studentId: input.studentId,
         admissionYear: input.admissionYear,
         departmentId: input.departmentId,
+        verifiedEmail: verifiedEmailAddr,
         status: "verified",
       })
       .where(eq(users.id, input.userId))
       .returning();
 
     if (!updated[0]) throw new Error("USER_NOT_FOUND");
+
+    // 2.5) 이메일 인증 기록 소모(consumedAt) 처리
+    await tx
+      .update(emailVerifications)
+      .set({ consumedAt: new Date() })
+      .where(eq(emailVerifications.id, verifications[0].id));
 
     // 3) profiles 레코드 생성 (없을 경우에만)
     const existingProfile = await tx

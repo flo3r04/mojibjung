@@ -88,7 +88,11 @@ import {
   completeRegistrationSimplified,
   getDepartmentById,
   listDepartments,
+  getDb,
 } from "./db";
+import { and, eq, desc, isNull, isNotNull, gte } from "drizzle-orm";
+import { emailVerificationService } from "./emailService";
+import { emailVerifications, users } from "../drizzle/schema";
 
 // ─── Zod 스키마 (데이터 검증 도구) ───────────────────────────────────────────────────
 
@@ -166,6 +170,143 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
+
+    // 학교 이메일 인증코드 발송
+    sendEmailVerification: protectedProcedure
+      .input(z.object({ email: z.string().trim() }))
+      .mutation(async ({ ctx, input }) => {
+        const cleanEmail = emailVerificationService.sanitizeAndVerifyDomain(input.email);
+        if (!cleanEmail) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "올바른 한국외대 이메일 주소(@hufs.ac.kr)를 입력해주세요.",
+          });
+        }
+
+        const db = await getDb();
+        if (!db) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "데이터베이스 서버에 연결할 수 없습니다.",
+          });
+        }
+
+        // 1인 1계정 중복 검사
+        const existing = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              eq(users.verifiedEmail, cleanEmail),
+              eq(users.status, "verified")
+            )
+          )
+          .limit(1);
+
+        if (existing.length > 0 && existing[0].id !== ctx.user.id) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "이미 다른 계정에서 인증 완료된 이메일입니다.",
+          });
+        }
+
+        // OTP 생성 및 발송
+        const otp = emailVerificationService.generateSecureOtp();
+        const encryptedOtp = emailVerificationService.encryptOtp(otp);
+
+        await db.insert(emailVerifications).values({
+          userId: ctx.user.id,
+          email: cleanEmail,
+          codeHash: encryptedOtp,
+          expiresAt: new Date(Date.now() + 5 * 60_000), // 5분 유효
+        });
+
+        const sent = await emailVerificationService.dispatchOtp(cleanEmail, otp);
+        if (!sent) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "인증 이메일 발송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
+          });
+        }
+
+        return { success: true };
+      }),
+
+    // 학교 이메일 인증코드 검증
+    verifyEmailCode: protectedProcedure
+      .input(z.object({ email: z.string().trim(), code: z.string().length(6) }))
+      .mutation(async ({ ctx, input }) => {
+        const cleanEmail = emailVerificationService.sanitizeAndVerifyDomain(input.email);
+        if (!cleanEmail) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "올바른 한국외대 이메일 주소(@hufs.ac.kr)입니다.",
+          });
+        }
+
+        const db = await getDb();
+        if (!db) {
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "데이터베이스 서버에 연결할 수 없습니다.",
+          });
+        }
+
+        const now = new Date();
+        const verifications = await db
+          .select()
+          .from(emailVerifications)
+          .where(
+            and(
+              eq(emailVerifications.userId, ctx.user.id),
+              eq(emailVerifications.email, cleanEmail),
+              isNull(emailVerifications.consumedAt),
+              gte(emailVerifications.expiresAt, now)
+            )
+          )
+          .orderBy(desc(emailVerifications.createdAt))
+          .limit(1);
+
+        if (verifications.length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "유효한 이메일 인증 요청이 존재하지 않거나 시간(5분)이 초과되었습니다.",
+          });
+        }
+
+        const verification = verifications[0];
+
+        // 시도 횟수 제한 (최대 10회)
+        if (verification.attempts >= 10) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "인증 시도 횟수(10회)를 초과했습니다. 인증 코드를 다시 발송해주세요.",
+          });
+        }
+
+        // 시도 횟수 증가
+        await db
+          .update(emailVerifications)
+          .set({ attempts: verification.attempts + 1 })
+          .where(eq(emailVerifications.id, verification.id));
+
+        // OTP 일치 대조
+        const isMatch = emailVerificationService.verifyOtpToken(input.code, verification.codeHash);
+        if (!isMatch) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "인증 보안 코드가 일치하지 않습니다. 다시 입력해주세요.",
+          });
+        }
+
+        // 인증 성공 마킹
+        await db
+          .update(emailVerifications)
+          .set({ verifiedAt: new Date() })
+          .where(eq(emailVerifications.id, verification.id));
+
+        return { success: true };
+      }),
 
     // ───────────────────────────────────────────────────────────────────────
     // 회원가입 완료 — 실명/학번/학과/입학년도로 PENDING → VERIFIED 전환

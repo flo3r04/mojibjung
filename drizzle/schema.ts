@@ -49,7 +49,7 @@ export const users = pgTable(
     // --- 인증 재설계 신규 컬럼 ---
     status: varchar("status", { length: 20 })
       .$type<"pending" | "verified" | "disabled">()
-      .default("verified")
+      .default("pending")
       .notNull(),
     realName: varchar("realName", { length: 50 }),
     studentId: varchar("studentId", { length: 10 }),
@@ -102,13 +102,30 @@ export type Profile = typeof profiles.$inferSelect;
 export type InsertProfile = typeof profiles.$inferInsert;
 
 // ============================================================================
-// 학교 이메일 인증 — 6자리 코드, 해시 저장, attempts ≤ 5, 5분 만료
+// 학교 이메일 인증 — 6자리 코드, 해시 저장, attempts ≤ 10, 5분 만료
 // ============================================================================
+export const emailVerifications = pgTable(
+  "emailVerifications",
+  {
+    id: serial("id").primaryKey(),
+    userId: integer("userId").notNull(),
+    email: varchar("email", { length: 320 }).notNull(),
+    codeHash: varchar("codeHash", { length: 64 }).notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    expiresAt: timestamp("expiresAt").notNull(),
+    verifiedAt: timestamp("verifiedAt"),
+    consumedAt: timestamp("consumedAt"),
+    ipAddress: varchar("ipAddress", { length: 45 }),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+  },
+  table => [
+    index("emailVerifications_userId_idx").on(table.userId),
+    index("emailVerifications_email_idx").on(table.email),
+  ]
+);
 
-
-// ============================================================================
-// 검증 토큰 — 이메일 인증 통과 후 회원가입 완료 사이 1회용 증거
-// ============================================================================
+export type EmailVerification = typeof emailVerifications.$inferSelect;
+export type InsertEmailVerification = typeof emailVerifications.$inferInsert;
 
 
 // ============================================================================
