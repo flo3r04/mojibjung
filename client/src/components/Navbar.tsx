@@ -12,10 +12,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Users, GraduationCap, PenSquare, LogOut, User, LayoutDashboard, ShieldAlert, MessageSquare, Search, UserX, AlertTriangle, ShieldCheck, Calendar, Menu } from "lucide-react";
+import { BookOpen, Users, GraduationCap, PenSquare, LogOut, User, LayoutDashboard, ShieldAlert, MessageSquare, Search, UserX, AlertTriangle, ShieldCheck, Calendar, Menu, Sun, Moon } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { useTheme } from "../contexts/ThemeContext";
 
 import {
   AlertDialog,
@@ -35,6 +36,7 @@ export default function Navbar() {
   // 인증 정보 및 로그아웃 함수 가져오기
   const { user, isAuthenticated, isVerified, logout } = useAuth();
   const [location, setLocation] = useLocation();
+  const { theme, toggleTheme } = useTheme();
 
   const [withdrawConfirmText, setWithdrawConfirmText] = useState("");
 
@@ -83,6 +85,24 @@ export default function Navbar() {
                 <Search className="w-5 h-5" />
               </Button>
             </Link>
+
+            {/* Dark Mode Toggle Button */}
+            {toggleTheme && (
+              <Button
+                size="icon"
+                variant="ghost"
+                className="rounded-full text-muted-foreground hover:text-foreground"
+                onClick={toggleTheme}
+                aria-label="테마 변경"
+              >
+                {theme === "dark" ? (
+                  <Sun className="w-5 h-5 text-yellow-500 animate-in spin-in-45 duration-300" />
+                ) : (
+                  <Moon className="w-5 h-5" />
+                )}
+              </Button>
+            )}
+
             {isAuthenticated ? (
               <>
                 {/* [글 쓰기 버튼] */}
