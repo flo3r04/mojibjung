@@ -4,8 +4,8 @@ services:
     env: node
     previewsEnabled: true
     previewsPullRequestButtonEnabled: true
-    buildCommand: npm install -g pnpm && pnpm install && pnpm run db:push && pnpm run db:seed && pnpm run build
-    startCommand: pnpm run start
+    buildCommand: npm install -g pnpm && pnpm install && pnpm run build
+    startCommand: pnpm run db:push && pnpm run start
     envVars:
       - key: DATABASE_URL
         fromDatabase:
