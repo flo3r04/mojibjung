@@ -2010,29 +2010,56 @@ function GroupStudiesSection({
                 value={leaderSearchQuery}
                 onChange={(e) => setLeaderSearchQuery(e.target.value)}
                 placeholder="이름 또는 학번으로 스터디장 검색..."
-                className="rounded-xl font-bold h-9 border-border bg-muted/20 focus-visible:ring-primary mb-1.5 text-xs animate-fadeIn"
+                className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary text-xs"
               />
-              <select
-                value={newStudyLeaderId ?? ""}
-                onChange={(e) => setNewStudyLeaderId(Number(e.target.value))}
-                className="w-full rounded-xl font-bold h-10 px-3 border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary text-xs"
-                required
-              >
-                <option value="">-- 스터디장 선택 --</option>
-                {parentMembers
-                  .filter((m: any) => {
-                    if (m.userId === newStudyLeaderId) return true;
+              <div className="max-h-[22vh] overflow-y-auto space-y-1.5 mt-2 pr-1 border border-border/40 p-2 rounded-2xl bg-muted/5 select-none">
+                {(() => {
+                  const filtered = parentMembers.filter((m: any) => {
                     const name = m.realName ?? m.name ?? "";
                     const studentId = m.studentId ?? "";
                     return name.toLowerCase().includes(leaderSearchQuery.toLowerCase()) ||
                            studentId.toLowerCase().includes(leaderSearchQuery.toLowerCase());
-                  })
-                  .map((m: any) => (
-                    <option key={m.userId} value={m.userId}>
-                      {m.realName ?? m.name} ({m.studentId ? `${m.studentId.substring(2,4)}학번` : "일반"})
-                    </option>
-                  ))}
-              </select>
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-6 text-muted-foreground/60 font-semibold text-[11px] animate-fadeIn">
+                        검색 결과와 일치하는 단원이 없습니다.
+                      </div>
+                    );
+                  }
+
+                  return filtered.map((m: any) => {
+                    const isSelected = newStudyLeaderId === m.userId;
+                    return (
+                      <div
+                        key={m.userId}
+                        onClick={() => setNewStudyLeaderId(m.userId)}
+                        className={`p-2.5 rounded-xl border transition-all flex items-center justify-between cursor-pointer text-xs ${
+                          isSelected ? "border-primary bg-primary/5 font-bold" : "border-border/60 hover:bg-muted/10 bg-card"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Avatar className="w-7 h-7">
+                            <AvatarFallback className="bg-primary/10 text-primary font-black text-[10px]">
+                              {m.realName?.charAt(0) ?? m.name?.charAt(0) ?? "M"}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <span className="text-xs text-foreground block">{m.realName ?? m.name}</span>
+                            <span className="text-[9px] font-semibold text-muted-foreground/80 block mt-0.5">
+                              {m.studentId ? `${m.studentId.substring(2, 4)}학번` : "일반"}
+                            </span>
+                          </div>
+                        </div>
+                        <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isSelected ? "border-primary bg-primary" : "border-border"}`}>
+                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
             </div>
 
             <DialogFooter className="pt-2 gap-2">
