@@ -44,13 +44,21 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import MeetingTimeScheduler from "@/components/MeetingTimeScheduler";
 
 export default function GroupHub() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
 
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"chat" | "calendar" | "members" | "files" | "studies">("chat");
+  const [activeTab, setActiveTab] = useState<"chat" | "calendar" | "members" | "files" | "studies" | "timepolls">("chat");
+  const [selectedTimePollId, setSelectedTimePollId] = useState<number | null>(null);
+  const [timePollModalOpen, setTimePollModalOpen] = useState(false);
+  const [newPollTitle, setNewPollTitle] = useState("");
+  const [newPollDates, setNewPollDates] = useState<string[]>([]);
+  const [newPollTimeStart, setNewPollTimeStart] = useState("09:00");
+  const [newPollTimeEnd, setNewPollTimeEnd] = useState("22:00");
+  const [dateInputVal, setDateInputVal] = useState("");
   const [copiedKeyGroupId, setCopiedKeyGroupId] = useState<number | null>(null);
 
   // Group join access key
@@ -465,6 +473,16 @@ export default function GroupHub() {
                       <ListTodo className="w-4.5 h-4.5" />
                       소모임 / 스터디
                     </button>
+                    <button
+                      onClick={() => {
+                        setActiveTab("timepolls");
+                        setSelectedTimePollId(null);
+                      }}
+                      className={`flex items-center gap-2 px-5 py-3.5 text-sm font-bold border-b-2 transition-all ${activeTab === "timepolls" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                    >
+                      <Clock className="w-4.5 h-4.5" />
+                      시간 조율 투표
+                    </button>
                     {(selectedGroup.isLeader || user?.role === "admin") && (
                       <button
                         onClick={() => setActiveTab("members")}
@@ -852,6 +870,15 @@ export default function GroupHub() {
                           groupId={selectedGroupId ?? 0}
                           isLeader={selectedGroup?.isLeader ?? false}
                           user={user}
+                        />
+                      </div>
+                    )}
+
+                    {activeTab === "timepolls" && (
+                      <div className="flex-1 p-6 overflow-y-auto bg-card">
+                        <GroupTimePollsSection
+                          groupId={selectedGroupId}
+                          isLeader={selectedGroup?.isLeader ?? false}
                         />
                       </div>
                     )}
@@ -2102,7 +2129,7 @@ function SubStudyWorkspace({
   onBack: () => void;
 }) {
   const utils = trpc.useUtils();
-  const [activeSubTab, setActiveSubTab] = useState<"minutes" | "members">("minutes");
+  const [activeSubTab, setActiveSubTab] = useState<"minutes" | "members" | "timepolls">("minutes");
 
   // 스터디 멤버 조회
   const { data: studyMembers = [], isLoading: membersLoading } = trpc.group.listSubStudyMembers.useQuery({ studyId, groupId });
@@ -2269,6 +2296,12 @@ function SubStudyWorkspace({
           >
             팀원 구성 ({studyMembers.length}명)
           </button>
+          <button
+            onClick={() => setActiveSubTab("timepolls")}
+            className={`px-4 py-1.5 text-xs font-bold rounded-xl border transition-all ${activeSubTab === "timepolls" ? "bg-primary/10 border-primary/20 text-primary" : "bg-transparent border-border/50 text-muted-foreground hover:text-foreground"}`}
+          >
+            시간 조율 투표
+          </button>
         </div>
       </div>
 
@@ -2367,6 +2400,16 @@ function SubStudyWorkspace({
               })}
             </div>
           )}
+        </div>
+      )}
+
+      {activeSubTab === "timepolls" && (
+        <div className="space-y-4">
+          <GroupTimePollsSection
+            groupId={groupId}
+            studyId={studyId}
+            isLeader={isStudyLeader || isLeaderOrAdmin}
+          />
         </div>
       )}
 
@@ -2604,3 +2647,254 @@ function SubStudyWorkspace({
     </div>
   );
 }
+
+// ============================================================================
+// 상위 그룹/소모임용 시간 조율 섹션 컴포넌트
+// ============================================================================
+function GroupTimePollsSection({
+  groupId,
+  studyId,
+  isLeader,
+}: {
+  groupId?: number | null;
+  studyId?: number | null;
+  isLeader: boolean;
+}) {
+  const utils = trpc.useUtils();
+  const [selectedPollId, setSelectedPollId] = useState<number | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  
+  // Form states
+  const [title, setTitle] = useState("");
+  const [dates, setDates] = useState<string[]>([]);
+  const [dateInput, setDateInput] = useState("");
+  const [timeStart, setTimeStart] = useState("09:00");
+  const [timeEnd, setTimeEnd] = useState("22:00");
+
+  const { data: polls = [], isLoading } = trpc.group.listTimePolls.useQuery({ groupId, studyId });
+
+  const createPollMutation = trpc.group.createTimePoll.useMutation({
+    onSuccess: () => {
+      utils.group.listTimePolls.invalidate({ groupId, studyId });
+      toast.success("시간 조율 투표가 생성되었습니다.");
+      setModalOpen(false);
+      // Reset form
+      setTitle("");
+      setDates([]);
+      setTimeStart("09:00");
+      setTimeEnd("22:00");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const handleAddDate = () => {
+    if (!dateInput) return;
+    if (dates.includes(dateInput)) {
+      toast.error("이미 선택된 날짜입니다.");
+      return;
+    }
+    setDates([...dates, dateInput].sort());
+    setDateInput("");
+  };
+
+  const handleRemoveDate = (d: string) => {
+    setDates(dates.filter(item => item !== d));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (dates.length === 0) {
+      toast.error("최소 1개 이상의 날짜를 선택해야 합니다.");
+      return;
+    }
+    createPollMutation.mutate({
+      groupId,
+      studyId,
+      title,
+      dates,
+      timeRangeStart: timeStart,
+      timeRangeEnd: timeEnd,
+    });
+  };
+
+  if (selectedPollId) {
+    return (
+      <MeetingTimeScheduler
+        groupId={groupId}
+        studyId={studyId}
+        pollId={selectedPollId}
+        isLeaderOrAdmin={isLeader}
+        onBack={() => {
+          setSelectedPollId(null);
+          utils.group.listTimePolls.invalidate({ groupId, studyId });
+        }}
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-6 select-none">
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-black text-[#0F2547] dark:text-slate-100 flex items-center gap-1.5">
+            <Clock className="w-4.5 h-4.5 text-primary" />
+            모임 시간 조율 투표
+          </h3>
+          <p className="text-[11px] font-bold text-muted-foreground/80 mt-1">
+            부원들의 일정을 취합하여 가장 약속을 잡기 좋은 최적의 교집합 시간을 찾아냅니다.
+          </p>
+        </div>
+        {isLeader && (
+          <Button onClick={() => setModalOpen(true)} className="rounded-xl font-black shadow-md bg-primary text-white h-9 text-xs">
+            <Plus className="w-4 h-4 mr-1" />
+            새 투표 만들기
+          </Button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="py-20 text-center text-xs font-bold text-muted-foreground/60 animate-pulse">
+          투표 목록 불러오는 중...
+        </div>
+      ) : polls.length === 0 ? (
+        <div className="py-20 text-center border border-dashed rounded-3xl bg-muted/5 flex flex-col items-center justify-center gap-3">
+          <Clock className="w-10 h-10 text-muted-foreground/30" />
+          <div className="space-y-1">
+            <p className="text-xs font-black text-muted-foreground">생성된 시간 조율 투표가 없습니다.</p>
+            <p className="text-[10px] font-semibold text-muted-foreground/80">회의 일정을 잡기 위해 투표를 새로 시작해보세요!</p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {polls.map((p) => {
+            const isPollClosed = p.status === "closed";
+            return (
+              <div
+                key={p.id}
+                onClick={() => setSelectedPollId(p.id)}
+                className="group border border-border/60 bg-card rounded-2xl p-5 hover:border-primary/20 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between"
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
+                      isPollClosed ? "bg-muted text-muted-foreground" : "bg-primary/10 text-primary"
+                    }`}>
+                      {isPollClosed ? "마감됨" : "진행중"}
+                    </span>
+                    <span className="text-[9px] font-bold text-muted-foreground">
+                      {new Date(p.createdAt).toLocaleDateString("ko-KR")}
+                    </span>
+                  </div>
+                  <h4 className="font-black text-sm text-foreground line-clamp-1 group-hover:text-primary transition-colors">
+                    {p.title}
+                  </h4>
+                  <p className="text-[10px] font-semibold text-muted-foreground/80 mt-2">
+                    범위: {p.timeRangeStart} ~ {p.timeRangeEnd} ({p.dates.length}일간 진행)
+                  </p>
+                </div>
+                <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-4 text-[10px] font-black text-primary group-hover:underline">
+                  <span>투표하기 및 현황 보기 →</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Create Poll Modal */}
+      <Dialog open={modalOpen} onOpenChange={setModalOpen}>
+        <DialogContent className="rounded-3xl border border-border max-w-md shadow-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pr-6">
+            <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
+              <Clock className="w-5.5 h-5.5 text-primary" />
+              모임 시간 조율 투표 만들기
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground font-medium text-xs">
+              부원들이 가능한 시간표를 드래그하여 입력할 투표판을 생성합니다.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSubmit} className="space-y-4 my-3 text-xs">
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-black text-muted-foreground">투표 제목</label>
+              <Input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="예: 1차 아이디어 기획 모임 조율"
+                className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5 flex flex-col">
+              <label className="text-[11px] font-black text-muted-foreground">조율할 날짜 추가 (다중 선택 가능)</label>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={dateInput}
+                  onChange={(e) => setDateInput(e.target.value)}
+                  className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary flex-1 text-xs"
+                />
+                <Button type="button" onClick={handleAddDate} className="rounded-xl font-bold h-10 px-4">
+                  추가
+                </Button>
+              </div>
+
+              {/* Selected Dates Badges */}
+              {dates.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mt-2 bg-muted/5 border border-border/40 p-2.5 rounded-2xl max-h-24 overflow-y-auto">
+                  {dates.map((d) => (
+                    <Badge key={d} className="bg-primary/10 text-primary font-bold text-[10px] px-2 py-0.8 flex items-center gap-1 rounded-lg hover:bg-primary/15 border-transparent">
+                      {d}
+                      <X onClick={() => handleRemoveDate(d)} className="w-3 h-3 cursor-pointer text-primary/80 hover:text-primary" />
+                    </Badge>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-muted-foreground">하루 시작 범위</label>
+                <select
+                  value={timeStart}
+                  onChange={(e) => setTimeStart(e.target.value)}
+                  className="w-full rounded-xl font-bold h-10 px-3 border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary text-xs"
+                >
+                  {Array.from({ length: 24 }).map((_, h) => {
+                    const str = `${h.toString().padStart(2, "0")}:00`;
+                    return <option key={str} value={str}>{str}</option>;
+                  })}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-black text-muted-foreground">하루 종료 범위</label>
+                <select
+                  value={timeEnd}
+                  onChange={(e) => setTimeEnd(e.target.value)}
+                  className="w-full rounded-xl font-bold h-10 px-3 border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary text-xs"
+                >
+                  {Array.from({ length: 24 }).map((_, h) => {
+                    const str = `${h.toString().padStart(2, "0")}:00`;
+                    return <option key={str} value={str}>{str}</option>;
+                  })}
+                </select>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2 gap-2">
+              <Button type="button" variant="outline" className="rounded-xl font-bold" onClick={() => setModalOpen(false)}>
+                취소
+              </Button>
+              <Button type="submit" className="rounded-xl font-black shadow-md bg-primary" disabled={createPollMutation.isPending}>
+                투표 만들기
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+

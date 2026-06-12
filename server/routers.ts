@@ -2293,6 +2293,358 @@ export const appRouter = router({
         await deleteGroupStudyMinute(input.id);
         return { success: true };
       }),
+
+    // 모임 시간 조율 투표 생성
+    createTimePoll: protectedVerifiedProcedure
+      .input(
+        z.object({
+          groupId: z.number().optional().nullable(),
+          studyId: z.number().optional().nullable(),
+          title: z.string().min(1, "투표 제목을 입력해주세요.").max(200),
+          dates: z.array(z.string()),
+          timeRangeStart: z.string().default("09:00"),
+          timeRangeEnd: z.string().default("22:00"),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { meetingTimePolls } = await import("../drizzle/schema");
+
+        if (input.studyId) {
+          const { groupStudies } = await import("../drizzle/schema");
+          const studyRows = await db.select().from(groupStudies).where(eq(groupStudies.id, input.studyId)).limit(1);
+          const study = studyRows[0];
+          const perm = await checkGroupPermissions(ctx.user.id, study?.groupId ?? 0);
+          const isStudyLeader = study && study.leaderId === ctx.user.id;
+          const isParentLeader = perm.isLeader || ctx.user.role === "admin";
+
+          if (!isStudyLeader && !isParentLeader) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "스터디장만 시간 조율 투표를 생성할 수 있습니다." });
+          }
+        } else if (input.groupId) {
+          const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+          const isLeaderOrAdmin = perm.isLeader || ctx.user.role === "admin";
+          if (!isLeaderOrAdmin) {
+            throw new TRPCError({ code: "FORBIDDEN", message: "그룹 리더만 시간 조율 투표를 생성할 수 있습니다." });
+          }
+        } else {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "그룹 ID 또는 스터디 ID가 필요합니다." });
+        }
+
+        const [newPoll] = await db
+          .insert(meetingTimePolls)
+          .values({
+            groupId: input.groupId ?? null,
+            studyId: input.studyId ?? null,
+            title: input.title,
+            dates: input.dates,
+            timeRangeStart: input.timeRangeStart,
+            timeRangeEnd: input.timeRangeEnd,
+            creatorId: ctx.user.id,
+            status: "open",
+          })
+          .returning();
+
+        return newPoll;
+      }),
+
+    // 시간 조율 투표 목록 조회
+    listTimePolls: protectedVerifiedProcedure
+      .input(
+        z.object({
+          groupId: z.number().optional().nullable(),
+          studyId: z.number().optional().nullable(),
+        })
+      )
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { meetingTimePolls } = await import("../drizzle/schema");
+
+        if (input.studyId) {
+          return db
+            .select()
+            .from(meetingTimePolls)
+            .where(eq(meetingTimePolls.studyId, input.studyId))
+            .orderBy(desc(meetingTimePolls.createdAt));
+        } else if (input.groupId) {
+          return db
+            .select()
+            .from(meetingTimePolls)
+            .where(
+              and(
+                eq(meetingTimePolls.groupId, input.groupId),
+                isNull(meetingTimePolls.studyId)
+              )
+            )
+            .orderBy(desc(meetingTimePolls.createdAt));
+        }
+        return [];
+      }),
+
+    // 시간 조율 투표 상세 조회
+    getTimePollDetail: protectedVerifiedProcedure
+      .input(z.object({ pollId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { meetingTimePolls, meetingTimeResponses } = await import("../drizzle/schema");
+
+        const pollRows = await db.select().from(meetingTimePolls).where(eq(meetingTimePolls.id, input.pollId)).limit(1);
+        const poll = pollRows[0];
+        if (!poll) throw new TRPCError({ code: "NOT_FOUND", message: "투표를 찾을 수 없습니다." });
+
+        const responses = await db
+          .select()
+          .from(meetingTimeResponses)
+          .where(eq(meetingTimeResponses.pollId, input.pollId));
+
+        const candidates: any[] = [];
+        
+        const generateTimeSlots = (start: string, end: string): string[] => {
+          const slots: string[] = [];
+          let [sh, sm] = start.split(":").map(Number);
+          const [eh, em] = end.split(":").map(Number);
+          while (sh < eh || (sh === eh && sm < em)) {
+            const timeStr = `${sh.toString().padStart(2, "0")}:${sm.toString().padStart(2, "0")}`;
+            slots.push(timeStr);
+            sm += 30;
+            if (sm >= 60) {
+              sh += 1;
+              sm = 0;
+            }
+          }
+          return slots;
+        };
+
+        if (responses.length > 0) {
+          for (const date of poll.dates) {
+            const slots = generateTimeSlots(poll.timeRangeStart, poll.timeRangeEnd);
+            
+            const slotAvailabilities = slots.map(slot => {
+              const availUsers = responses.filter(r => {
+                const userAvail = (r.availability as any)?.[date] || [];
+                return userAvail.includes(slot);
+              });
+              return {
+                slot,
+                userIds: availUsers.map(u => u.userId).sort(),
+                userNames: availUsers.map(u => u.userName),
+              };
+            });
+
+            let currentBlock: any = null;
+
+            const pushCurrentBlock = (lastSlot: string) => {
+              if (currentBlock) {
+                let [lh, lm] = lastSlot.split(":").map(Number);
+                lm += 30;
+                if (lm >= 60) {
+                  lh += 1;
+                  lm = 0;
+                }
+                const endTime = `${lh.toString().padStart(2, "0")}:${lm.toString().padStart(2, "0")}`;
+                
+                const duration = (lh * 60 + lm) - (Number(currentBlock.startTime.split(":")[0]) * 60 + Number(currentBlock.startTime.split(":")[1]));
+                
+                candidates.push({
+                  date,
+                  startTime: currentBlock.startTime,
+                  endTime,
+                  userIds: currentBlock.userIds,
+                  userNames: currentBlock.userNames,
+                  count: currentBlock.userIds.length,
+                  durationMinutes: duration,
+                });
+                currentBlock = null;
+              }
+            };
+
+            for (const item of slotAvailabilities) {
+              if (item.userIds.length === 0) {
+                pushCurrentBlock(currentBlock ? currentBlock.lastSlot : "");
+                continue;
+              }
+
+              if (!currentBlock) {
+                currentBlock = {
+                  startTime: item.slot,
+                  lastSlot: item.slot,
+                  userIds: item.userIds,
+                  userNames: item.userNames,
+                };
+              } else {
+                const isSameGroup = currentBlock.userIds.length === item.userIds.length &&
+                  currentBlock.userIds.every((val: number, index: number) => val === item.userIds[index]);
+
+                if (isSameGroup) {
+                  currentBlock.lastSlot = item.slot;
+                } else {
+                  pushCurrentBlock(currentBlock.lastSlot);
+                  currentBlock = {
+                    startTime: item.slot,
+                    lastSlot: item.slot,
+                    userIds: item.userIds,
+                    userNames: item.userNames,
+                  };
+                }
+              }
+            }
+            pushCurrentBlock(currentBlock ? currentBlock.lastSlot : "");
+          }
+        }
+
+        candidates.sort((a, b) => {
+          if (b.count !== a.count) return b.count - a.count;
+          if (b.durationMinutes !== a.durationMinutes) return b.durationMinutes - a.durationMinutes;
+          if (a.date !== b.date) return a.date.localeCompare(b.date);
+          return a.startTime.localeCompare(b.startTime);
+        });
+
+        const recommendations = candidates.slice(0, 5);
+        const myResponse = responses.find((r) => r.userId === ctx.user.id);
+
+        return {
+          poll,
+          responses,
+          recommendations,
+          myResponse: myResponse ?? null,
+        };
+      }),
+
+    // 가용 시간 응답 제출 및 수정
+    submitTimePollResponse: protectedVerifiedProcedure
+      .input(
+        z.object({
+          pollId: z.number(),
+          availability: z.record(z.array(z.string())),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { meetingTimePolls, meetingTimeResponses } = await import("../drizzle/schema");
+
+        const pollRows = await db.select().from(meetingTimePolls).where(eq(meetingTimePolls.id, input.pollId)).limit(1);
+        const poll = pollRows[0];
+        if (!poll) throw new TRPCError({ code: "NOT_FOUND", message: "투표를 찾을 수 없습니다." });
+        if (poll.status === "closed") throw new TRPCError({ code: "BAD_REQUEST", message: "이미 종료된 투표입니다." });
+
+        const existing = await db
+          .select()
+          .from(meetingTimeResponses)
+          .where(
+            and(
+              eq(meetingTimeResponses.pollId, input.pollId),
+              eq(meetingTimeResponses.userId, ctx.user.id)
+            )
+          )
+          .limit(1);
+
+        const userName = ctx.user.realName ?? ctx.user.name ?? "단원";
+
+        if (existing[0]) {
+          const [updated] = await db
+            .update(meetingTimeResponses)
+            .set({
+              availability: input.availability,
+              userName,
+              updatedAt: new Date(),
+            })
+            .where(eq(meetingTimeResponses.id, existing[0].id))
+            .returning();
+          return updated;
+        } else {
+          const [inserted] = await db
+            .insert(meetingTimeResponses)
+            .values({
+              pollId: input.pollId,
+              userId: ctx.user.id,
+              userName,
+              availability: input.availability,
+            })
+            .returning();
+          return inserted;
+        }
+      }),
+
+    // 투표 종료(마감)
+    closeTimePoll: protectedVerifiedProcedure
+      .input(z.object({ pollId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { meetingTimePolls } = await import("../drizzle/schema");
+
+        const pollRows = await db.select().from(meetingTimePolls).where(eq(meetingTimePolls.id, input.pollId)).limit(1);
+        const poll = pollRows[0];
+        if (!poll) throw new TRPCError({ code: "NOT_FOUND", message: "투표를 찾을 수 없습니다." });
+
+        const isCreator = poll.creatorId === ctx.user.id;
+        let isAuthorized = isCreator || ctx.user.role === "admin";
+
+        if (!isAuthorized) {
+          if (poll.studyId) {
+            const { groupStudies } = await import("../drizzle/schema");
+            const studyRows = await db.select().from(groupStudies).where(eq(groupStudies.id, poll.studyId)).limit(1);
+            const study = studyRows[0];
+            if (study && study.leaderId === ctx.user.id) isAuthorized = true;
+          } else if (poll.groupId) {
+            const perm = await checkGroupPermissions(ctx.user.id, poll.groupId);
+            if (perm.isLeader) isAuthorized = true;
+          }
+        }
+
+        if (!isAuthorized) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "투표 마감 권한이 없습니다." });
+        }
+
+        const [updated] = await db
+          .update(meetingTimePolls)
+          .set({ status: "closed", updatedAt: new Date() })
+          .where(eq(meetingTimePolls.id, input.pollId))
+          .returning();
+
+        return updated;
+      }),
+
+    // 투표 삭제
+    deleteTimePoll: protectedVerifiedProcedure
+      .input(z.object({ pollId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { meetingTimePolls, meetingTimeResponses } = await import("../drizzle/schema");
+
+        const pollRows = await db.select().from(meetingTimePolls).where(eq(meetingTimePolls.id, input.pollId)).limit(1);
+        const poll = pollRows[0];
+        if (!poll) throw new TRPCError({ code: "NOT_FOUND", message: "투표를 찾을 수 없습니다." });
+
+        const isCreator = poll.creatorId === ctx.user.id;
+        let isAuthorized = isCreator || ctx.user.role === "admin";
+
+        if (!isAuthorized) {
+          if (poll.studyId) {
+            const { groupStudies } = await import("../drizzle/schema");
+            const studyRows = await db.select().from(groupStudies).where(eq(groupStudies.id, poll.studyId)).limit(1);
+            const study = studyRows[0];
+            if (study && study.leaderId === ctx.user.id) isAuthorized = true;
+          } else if (poll.groupId) {
+            const perm = await checkGroupPermissions(ctx.user.id, poll.groupId);
+            if (perm.isLeader) isAuthorized = true;
+          }
+        }
+
+        if (!isAuthorized) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "투표 삭제 권한이 없습니다." });
+        }
+
+        await db.delete(meetingTimeResponses).where(eq(meetingTimeResponses.pollId, input.pollId));
+        await db.delete(meetingTimePolls).where(eq(meetingTimePolls.id, input.pollId));
+
+        return { success: true };
+      }),
   }),
 
   // [알림 관련 API]

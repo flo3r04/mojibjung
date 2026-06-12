@@ -580,3 +580,46 @@ export const groupStudyMinutes = pgTable("group_study_minutes", {
 
 export type GroupStudyMinute = typeof groupStudyMinutes.$inferSelect;
 export type InsertGroupStudyMinute = typeof groupStudyMinutes.$inferInsert;
+
+// ============================================================================
+// 모임 시간 조율 투표 (Meeting Time Polls)
+// ============================================================================
+export const meetingTimePolls = pgTable("meeting_time_polls", {
+  id: serial("id").primaryKey(),
+  groupId: integer("groupId"), // 상위 그룹 ID (optional)
+  studyId: integer("studyId"), // 하위 스터디 ID (optional)
+  title: varchar("title", { length: 200 }).notNull(),
+  dates: jsonb("dates").$type<string[]>().notNull(), // 선택할 날짜 목록 (e.g. ["2026-06-15", "2026-06-16"])
+  timeRangeStart: varchar("timeRangeStart", { length: 5 }).default("09:00").notNull(),
+  timeRangeEnd: varchar("timeRangeEnd", { length: 5 }).default("22:00").notNull(),
+  status: varchar("status", { length: 20 }).$type<"open" | "closed">().default("open").notNull(),
+  creatorId: integer("creatorId").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => [
+  index("meeting_time_polls_groupId_idx").on(table.groupId),
+  index("meeting_time_polls_studyId_idx").on(table.studyId)
+]);
+
+export type MeetingTimePoll = typeof meetingTimePolls.$inferSelect;
+export type InsertMeetingTimePoll = typeof meetingTimePolls.$inferInsert;
+
+// ============================================================================
+// 모임 시간 조율 응답 (Meeting Time Responses)
+// ============================================================================
+export const meetingTimeResponses = pgTable("meeting_time_responses", {
+  id: serial("id").primaryKey(),
+  pollId: integer("pollId").notNull(),
+  userId: integer("userId").notNull(),
+  userName: varchar("userName", { length: 50 }).notNull(),
+  availability: jsonb("availability").$type<Record<string, string[]>>().notNull(), // 날짜별 가용 시간 배열 (e.g. {"2026-06-15": ["09:00", "09:30"]})
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().notNull(),
+}, (table) => [
+  index("meeting_time_responses_pollId_idx").on(table.pollId),
+  index("meeting_time_responses_userId_idx").on(table.userId)
+]);
+
+export type MeetingTimeResponse = typeof meetingTimeResponses.$inferSelect;
+export type InsertMeetingTimeResponse = typeof meetingTimeResponses.$inferInsert;
+
