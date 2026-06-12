@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import {
+  ChevronDown,
   Users,
   MessageSquare,
   Megaphone,
@@ -2129,7 +2130,7 @@ function SubStudyWorkspace({
   onBack: () => void;
 }) {
   const utils = trpc.useUtils();
-  const [activeSubTab, setActiveSubTab] = useState<"minutes" | "members" | "timepolls">("minutes");
+  const [activeSubTab, setActiveSubTab] = useState<"minutes" | "members">("minutes");
 
   // 스터디 멤버 조회
   const { data: studyMembers = [], isLoading: membersLoading } = trpc.group.listSubStudyMembers.useQuery({ studyId, groupId });
@@ -2296,12 +2297,6 @@ function SubStudyWorkspace({
           >
             팀원 구성 ({studyMembers.length}명)
           </button>
-          <button
-            onClick={() => setActiveSubTab("timepolls")}
-            className={`px-4 py-1.5 text-xs font-bold rounded-xl border transition-all ${activeSubTab === "timepolls" ? "bg-primary/10 border-primary/20 text-primary" : "bg-transparent border-border/50 text-muted-foreground hover:text-foreground"}`}
-          >
-            시간 조율 투표
-          </button>
         </div>
       </div>
 
@@ -2400,16 +2395,6 @@ function SubStudyWorkspace({
               })}
             </div>
           )}
-        </div>
-      )}
-
-      {activeSubTab === "timepolls" && (
-        <div className="space-y-4">
-          <GroupTimePollsSection
-            groupId={groupId}
-            studyId={studyId}
-            isLeader={isStudyLeader || isLeaderOrAdmin}
-          />
         </div>
       )}
 
@@ -2772,8 +2757,9 @@ function GroupTimePollsSection({
               <div
                 key={p.id}
                 onClick={() => setSelectedPollId(p.id)}
-                className="group border border-border/60 bg-card rounded-2xl p-5 hover:border-primary/20 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between"
+                className="group border border-border/50 bg-card rounded-2xl p-5 hover:border-primary/30 hover:bg-muted/5 shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col justify-between min-h-36 relative overflow-hidden"
               >
+                <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-primary/30 to-amber-500/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-3">
                     <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${
@@ -2781,18 +2767,19 @@ function GroupTimePollsSection({
                     }`}>
                       {isPollClosed ? "마감됨" : "진행중"}
                     </span>
-                    <span className="text-[9px] font-bold text-muted-foreground">
+                    <span className="text-[9px] font-bold text-muted-foreground/80">
                       {new Date(p.createdAt).toLocaleDateString("ko-KR")}
                     </span>
                   </div>
                   <h4 className="font-black text-sm text-foreground line-clamp-1 group-hover:text-primary transition-colors">
                     {p.title}
                   </h4>
-                  <p className="text-[10px] font-semibold text-muted-foreground/80 mt-2">
-                    범위: {p.timeRangeStart} ~ {p.timeRangeEnd} ({p.dates.length}일간 진행)
+                  <p className="text-[10px] font-semibold text-muted-foreground/80 mt-2 flex items-center gap-1">
+                    <Clock className="w-3 h-3 text-muted-foreground/75" />
+                    <span>범위: {p.timeRangeStart} ~ {p.timeRangeEnd} ({p.dates.length}일간)</span>
                   </p>
                 </div>
-                <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-4 text-[10px] font-black text-primary group-hover:underline">
+                <div className="flex items-center justify-between border-t border-border/40 pt-3 mt-4 text-[10px] font-black text-primary/90 group-hover:text-primary transition-colors group-hover:underline">
                   <span>투표하기 및 현황 보기 →</span>
                 </div>
               </div>
@@ -2821,32 +2808,32 @@ function GroupTimePollsSection({
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="예: 1차 아이디어 기획 모임 조율"
-                className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary"
+                className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary text-xs"
                 required
               />
             </div>
 
             <div className="space-y-1.5 flex flex-col">
               <label className="text-[11px] font-black text-muted-foreground">조율할 날짜 추가 (다중 선택 가능)</label>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-[1fr_auto] gap-2 items-center">
                 <Input
                   type="date"
                   value={dateInput}
                   onChange={(e) => setDateInput(e.target.value)}
-                  className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary flex-1 text-xs"
+                  className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary text-xs w-full"
                 />
-                <Button type="button" onClick={handleAddDate} className="rounded-xl font-bold h-10 px-4">
+                <Button type="button" onClick={handleAddDate} className="rounded-xl font-black h-10 px-4 text-xs">
                   추가
                 </Button>
               </div>
 
               {/* Selected Dates Badges */}
               {dates.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2 bg-muted/5 border border-border/40 p-2.5 rounded-2xl max-h-24 overflow-y-auto">
+                <div className="flex flex-wrap gap-1.5 mt-2.5 p-3 rounded-2xl bg-muted/30 border border-border/50 max-h-28 overflow-y-auto animate-fadeIn select-none">
                   {dates.map((d) => (
-                    <Badge key={d} className="bg-primary/10 text-primary font-bold text-[10px] px-2 py-0.8 flex items-center gap-1 rounded-lg hover:bg-primary/15 border-transparent">
+                    <Badge key={d} className="bg-primary/5 text-primary border border-primary/20 font-black text-[10px] px-2.5 py-1 flex items-center gap-1 rounded-xl hover:bg-primary/10 transition-all">
                       {d}
-                      <X onClick={() => handleRemoveDate(d)} className="w-3 h-3 cursor-pointer text-primary/80 hover:text-primary" />
+                      <X onClick={() => handleRemoveDate(d)} className="w-3 h-3 ml-0.5 cursor-pointer text-primary/80 hover:text-primary transition-colors hover:scale-110" />
                     </Badge>
                   ))}
                 </div>
@@ -2856,30 +2843,36 @@ function GroupTimePollsSection({
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <label className="text-[11px] font-black text-muted-foreground">하루 시작 범위</label>
-                <select
-                  value={timeStart}
-                  onChange={(e) => setTimeStart(e.target.value)}
-                  className="w-full rounded-xl font-bold h-10 px-3 border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary text-xs"
-                >
-                  {Array.from({ length: 24 }).map((_, h) => {
-                    const str = `${h.toString().padStart(2, "0")}:00`;
-                    return <option key={str} value={str}>{str}</option>;
-                  })}
-                </select>
+                <div className="relative">
+                  <select
+                    value={timeStart}
+                    onChange={(e) => setTimeStart(e.target.value)}
+                    className="w-full rounded-xl font-bold h-10 px-3 pr-8 border border-border bg-muted/20 appearance-none focus:outline-none focus:ring-1 focus:ring-primary text-xs cursor-pointer"
+                  >
+                    {Array.from({ length: 24 }).map((_, h) => {
+                      const str = `${h.toString().padStart(2, "0")}:00`;
+                      return <option key={str} value={str}>{str}</option>;
+                    })}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/85 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-[11px] font-black text-muted-foreground">하루 종료 범위</label>
-                <select
-                  value={timeEnd}
-                  onChange={(e) => setTimeEnd(e.target.value)}
-                  className="w-full rounded-xl font-bold h-10 px-3 border border-border bg-muted/20 focus:outline-none focus:ring-1 focus:ring-primary text-xs"
-                >
-                  {Array.from({ length: 24 }).map((_, h) => {
-                    const str = `${h.toString().padStart(2, "0")}:00`;
-                    return <option key={str} value={str}>{str}</option>;
-                  })}
-                </select>
+                <div className="relative">
+                  <select
+                    value={timeEnd}
+                    onChange={(e) => setTimeEnd(e.target.value)}
+                    className="w-full rounded-xl font-bold h-10 px-3 pr-8 border border-border bg-muted/20 appearance-none focus:outline-none focus:ring-1 focus:ring-primary text-xs cursor-pointer"
+                  >
+                    {Array.from({ length: 24 }).map((_, h) => {
+                      const str = `${h.toString().padStart(2, "0")}:00`;
+                      return <option key={str} value={str}>{str}</option>;
+                    })}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/85 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
             </div>
 
