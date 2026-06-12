@@ -76,6 +76,39 @@ export async function getDb() {
     try {
       const queryClient = postgres(process.env.DATABASE_URL);
       _db = drizzle(queryClient);
+
+      // [보안 인증용 emailVerifications 테이블 강제 자동 싱크]
+      // Render 환경 등에서 마이그레이션 툴이 꼬였을 때를 대비한 수동 DDL 동기화 레이어
+      (async () => {
+        try {
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "emailVerifications" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "userId" integer NOT NULL,
+              "email" varchar(320) NOT NULL,
+              "codeHash" varchar(64) NOT NULL,
+              "attempts" integer DEFAULT 0 NOT NULL,
+              "expiresAt" timestamp NOT NULL,
+              "verifiedAt" timestamp,
+              "consumedAt" timestamp,
+              "ipAddress" varchar(45),
+              "createdAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+          
+          await _db!.execute(sql`
+            CREATE INDEX IF NOT EXISTS "emailVerifications_userId_idx" ON "emailVerifications" ("userId");
+          `);
+          await _db!.execute(sql`
+            CREATE INDEX IF NOT EXISTS "emailVerifications_email_idx" ON "emailVerifications" ("email");
+          `);
+          
+          console.log("[Database] emailVerifications 테이블 DDL 싱크 완료");
+        } catch (ddlError) {
+          console.error("[Database] DDL 싱크 예외 발생:", ddlError);
+        }
+      })();
+
     } catch (error) {
       console.warn("[Database] 연결 실패:", error);
       _db = null;
