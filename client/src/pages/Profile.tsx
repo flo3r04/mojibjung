@@ -184,8 +184,10 @@ export default function Profile() {
   // Effect 및 타이머
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (user && user.status === "verified") {
+    if (user && user.status === "verified" && user.realName && user.verifiedEmail) {
       setStep("profile");
+    } else {
+      setStep("email");
     }
   }, [user]);
 
@@ -964,8 +966,8 @@ export default function Profile() {
                     </div>
                   )}
 
-                  {/* 개발 디버깅용 리셋 버튼 (Verified 상태 유저에게만 노출) */}
-                  {user?.status === "verified" && (
+                  {/* 개발 디버깅용 리셋 버튼 (로그인되어 있다면 테스트 편의를 위해 항상 노출) */}
+                  {user && (
                     <div className="pt-4 border-t border-border mt-6">
                       <Button
                         type="button"
