@@ -327,7 +327,7 @@ export default function Profile() {
 
   return (
     <Layout>
-      <div className="container py-8 max-w-xl mx-auto">
+      <div className="container py-8 max-w-2xl mx-auto">
         
         {/* Onboarding Header */}
         <div className="flex flex-col items-center mb-8 text-center">
@@ -710,7 +710,7 @@ export default function Profile() {
             {step === "profile" && (
               <form onSubmit={handleProfileSubmit} className="space-y-6">
                 
-                {user?.status === "verified" && (
+                {user?.status === "verified" && user?.realName && user?.studentId && (
                   <div className="bg-muted/30 border border-border/80 rounded-2xl p-4 mb-2">
                     <div className="flex items-center gap-2 mb-3">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600 animate-bounce" />
