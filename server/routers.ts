@@ -481,8 +481,8 @@ export const appRouter = router({
         return getProfileByUserId(input.userId);
       }),
 
-    // 프로필 생성 또는 수정 — 정회원만
-    upsert: protectedVerifiedProcedure
+    // 프로필 생성 또는 수정 — 가입 대기자(pending) 및 정회원 모두
+    upsert: protectedProcedure
       .input(profileInput)
       .mutation(async ({ ctx, input }) => {
         // departmentId 변경 시 학과 존재 확인 (FK 위반 친절하게 변환)

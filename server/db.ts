@@ -193,42 +193,91 @@ export async function deleteUser(id: number) {
   const db = await getDb();
   if (!db) throw new Error("DB 사용 불가능");
 
-  // 1. 프로필 삭제
-  await db.delete(profiles).where(eq(profiles.userId, id));
+  await db.transaction(async tx => {
+    // 1. 프로필 삭제
+    await tx.delete(profiles).where(eq(profiles.userId, id));
 
-  // 2. 게시글 삭제 (게시글에 달린 댓글, 좋아요 등은 별도 처리가 필요할 수 있으나,
-  // 여기서는 사용자가 작성한 게시글만 삭제함. 게시글 삭제 시 게시글 ID를 참조하는 다른 테이블들도 정리)
-  const userPosts = await db
-    .select({ id: posts.id })
-    .from(posts)
-    .where(eq(posts.authorId, id));
-  for (const post of userPosts) {
-    await deletePost(post.id);
-  }
+    // 2. 해당 유저가 작성한 게시글 조회
+    const userPosts = await tx
+      .select({ id: posts.id })
+      .from(posts)
+      .where(eq(posts.authorId, id));
+    
+    const userPostIds = userPosts.map(p => p.id);
 
-  // 3. 사용자가 작성한 댓글 삭제
-  await db.delete(comments).where(eq(comments.authorId, id));
+    if (userPostIds.length > 0) {
+      // 해당 게시글에 달린 댓글, 좋아요, 북마크, 신청 내역 먼저 삭제
+      await tx.delete(comments).where(inArray(comments.postId, userPostIds));
+      await tx.delete(likes).where(inArray(likes.postId, userPostIds));
+      await tx.delete(bookmarks).where(inArray(bookmarks.postId, userPostIds));
+      await tx.delete(applications).where(inArray(applications.postId, userPostIds));
+      // 게시글 삭제
+      await tx.delete(posts).where(inArray(posts.id, userPostIds));
+    }
 
-  // 4. 좋아요 및 북마크 삭제
-  await db.delete(likes).where(eq(likes.userId, id));
-  await db.delete(bookmarks).where(eq(bookmarks.userId, id));
+    // 3. 사용자가 다른 게시글에 작성한 댓글 삭제
+    await tx.delete(comments).where(eq(comments.authorId, id));
 
-  // 5. 모집 신청 내역 삭제
-  await db.delete(applications).where(eq(applications.applicantId, id));
+    // 4. 사용자가 누른 좋아요 및 북마크 삭제
+    await tx.delete(likes).where(eq(likes.userId, id));
+    await tx.delete(bookmarks).where(eq(bookmarks.userId, id));
 
-  // 6. 주고받은 메시지 삭제
-  await db
-    .delete(messages)
-    .where(or(eq(messages.senderId, id), eq(messages.receiverId, id)));
+    // 5. 사용자가 신청한 모집 내역 삭제
+    await tx.delete(applications).where(eq(applications.applicantId, id));
 
-  // 6.5. 이메일 인증 이력, 세션 리프레시 토큰, 차단 이력, 그룹 멤버십 연관 데이터 영구 제거
-  await db.delete(emailVerifications).where(eq(emailVerifications.userId, id));
-  await db.delete(refreshTokens).where(eq(refreshTokens.userId, id));
-  await db.delete(groupMembers).where(eq(groupMembers.userId, id));
-  await db.delete(blocks).where(or(eq(blocks.blockerId, id), eq(blocks.blockedId, id)));
+    // 6. 사용자가 송/수신한 메시지 삭제
+    await tx
+      .delete(messages)
+      .where(or(eq(messages.senderId, id), eq(messages.receiverId, id)));
 
-  // 7. 최종적으로 사용자 계정 삭제
-  await db.delete(users).where(eq(users.id, id));
+    // 7. 이메일 인증 이력, 리프레시 토큰, 차단 이력 삭제
+    await tx.delete(emailVerifications).where(eq(emailVerifications.userId, id));
+    await tx.delete(refreshTokens).where(eq(refreshTokens.userId, id));
+    await tx.delete(blocks).where(or(eq(blocks.blockerId, id), eq(blocks.blockedId, id)));
+
+    // 8. 사용자가 신고한 내역 및 사용자에 대한 신고 내역 삭제
+    await tx
+      .delete(reports)
+      .where(
+        or(
+          eq(reports.reporterId, id),
+          and(eq(reports.targetType, "user"), eq(reports.targetId, id))
+        )
+      );
+
+    // 9. 사용자의 개인 캘린더 일정 삭제
+    await tx.delete(calendarEvents).where(eq(calendarEvents.userId, id));
+
+    // 10. 사용자가 리더인 그룹 및 해당 그룹 관련 모든 데이터 삭제
+    const ledGroups = await tx
+      .select({ id: groups.id })
+      .from(groups)
+      .where(eq(groups.leaderId, id));
+    
+    const ledGroupIds = ledGroups.map(g => g.id);
+
+    if (ledGroupIds.length > 0) {
+      await tx.delete(groupAnnouncements).where(inArray(groupAnnouncements.groupId, ledGroupIds));
+      await tx.delete(groupChatMessages).where(inArray(groupChatMessages.groupId, ledGroupIds));
+      await tx.delete(groupMembers).where(inArray(groupMembers.groupId, ledGroupIds));
+      await tx.delete(groupRoles).where(inArray(groupRoles.groupId, ledGroupIds));
+      await tx.delete(calendarEvents).where(inArray(calendarEvents.groupId, ledGroupIds));
+      await tx.delete(groups).where(inArray(groups.id, ledGroupIds));
+    }
+
+    // 11. 사용자가 가입했던 그룹 멤버십 삭제
+    await tx.delete(groupMembers).where(eq(groupMembers.userId, id));
+
+    // 12. 사용자가 쓴 그룹 공지사항 및 단톡방 메시지 삭제
+    await tx.delete(groupAnnouncements).where(eq(groupAnnouncements.authorId, id));
+    await tx.delete(groupChatMessages).where(eq(groupChatMessages.senderId, id));
+
+    // 13. 감사 로그 삭제
+    await tx.delete(auditLog).where(eq(auditLog.userId, id));
+
+    // 14. 최종적으로 사용자 계정 삭제
+    await tx.delete(users).where(eq(users.id, id));
+  });
 }
 
 // ─── 프로필(Profiles) 관련 함수 ───────────────────────────────────────────────
@@ -294,6 +343,13 @@ export async function upsertProfile(
   const userUpdate: Partial<typeof users.$inferInsert> = {};
   if (avatarUrl !== undefined) userUpdate.avatarUrl = avatarUrl;
   if (departmentId !== undefined) userUpdate.departmentId = departmentId;
+
+  // 3. 만약 유저의 realName과 verifiedEmail이 등록되어 있다면 status를 "verified"로 변경
+  const userRow = await db.select().from(users).where(eq(users.id, data.userId)).limit(1);
+  if (userRow.length > 0 && userRow[0].realName && userRow[0].verifiedEmail) {
+    userUpdate.status = "verified";
+  }
+
   if (Object.keys(userUpdate).length > 0) {
     await db.update(users).set(userUpdate).where(eq(users.id, data.userId));
   }
@@ -1270,7 +1326,7 @@ export async function completeRegistrationSimplified(input: {
       throw new Error("STUDENT_ID_TAKEN");
     }
 
-    // 2) users 업데이트 → status='verified' 및 verifiedEmail 등록
+    // 2) users 업데이트 → verifiedEmail 등록 (상태는 여전히 pending 유지)
     const updated = await tx
       .update(users)
       .set({
@@ -1279,7 +1335,6 @@ export async function completeRegistrationSimplified(input: {
         admissionYear: input.admissionYear,
         departmentId: input.departmentId,
         verifiedEmail: verifiedEmailAddr,
-        status: "verified",
       })
       .where(eq(users.id, input.userId))
       .returning();

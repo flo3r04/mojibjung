@@ -184,7 +184,7 @@ export default function Profile() {
   // Effect 및 타이머
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (user && user.status === "verified" && user.realName && user.verifiedEmail) {
+    if (user && user.realName && user.verifiedEmail) {
       setStep("profile");
     } else {
       setStep("email");
