@@ -139,10 +139,12 @@ export default function Profile() {
 
   // 프로필 저장
   const upsertMutation = trpc.profile.upsert.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
       toast.success("가입을 진심으로 환영합니다!");
-      utils.profile.get.invalidate();
-      utils.auth.me.invalidate();
+      await Promise.all([
+        utils.profile.get.invalidate(),
+        utils.auth.me.invalidate(),
+      ]);
       setLocation("/");
     },
     onError: (err) => toast.error(err.message || "프로필 저장 실패"),
