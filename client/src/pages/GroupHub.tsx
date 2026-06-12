@@ -35,6 +35,7 @@ import {
   X
 } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 export default function GroupHub() {
   const { user } = useAuth();
@@ -61,6 +62,7 @@ export default function GroupHub() {
   const [eventStart, setEventStart] = useState("");
   const [eventEnd, setEventEnd] = useState("");
   const [eventIsPrivate, setEventIsPrivate] = useState(false);
+  const [eventHasRsvp, setEventHasRsvp] = useState(false);
 
   // New notice/announcement state
   const [noticeModalOpen, setNoticeModalOpen] = useState(false);
@@ -173,6 +175,7 @@ export default function GroupHub() {
       setEventStart("");
       setEventEnd("");
       setEventIsPrivate(false);
+      setEventHasRsvp(false);
       setEventModalOpen(false);
       toast.success("그룹 일정이 성공적으로 등록되었습니다.");
     },
@@ -244,6 +247,7 @@ export default function GroupHub() {
       startDate: new Date(eventStart).toISOString(),
       endDate: new Date(eventEnd).toISOString(),
       isPrivate: eventIsPrivate ? 1 : 0,
+      hasRsvp: eventHasRsvp ? 1 : 0,
     });
   };
 
@@ -594,45 +598,16 @@ export default function GroupHub() {
                               등록된 그룹 일정이 없습니다.
                             </div>
                           ) : (
-                            groupEvents.map((evt) => {
-                              const isSecret = evt.isPrivate === 1;
-                              return (
-                                <div 
-                                  key={evt.id} 
-                                  className={`border rounded-2xl p-4.5 relative group shadow-sm transition-all ${isSecret ? "bg-amber-50/20 border-amber-200/50 hover:border-amber-300" : "bg-card border-border hover:border-primary/20"}`}
-                                >
-                                  <div className="flex justify-between items-start gap-2 mb-2">
-                                    <div className="flex items-center gap-2">
-                                      <h4 className="font-black text-sm text-foreground line-clamp-1">{evt.title}</h4>
-                                      {isSecret && (
-                                        <Badge variant="outline" className="bg-amber-100/50 border-amber-300 text-amber-700 text-[9px] font-extrabold px-1.5 py-0 rounded flex items-center gap-1 select-none shrink-0">
-                                          <Lock className="w-2.5 h-2.5 shrink-0" /> 비밀 일정
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    {(permissions?.isLeader || permissions?.canManageSchedule || user?.role === "admin") && (
-                                      <button 
-                                        className="p-1 rounded bg-transparent text-muted-foreground hover:text-destructive hover:bg-destructive/5 shrink-0 transition-colors opacity-0 group-hover:opacity-100"
-                                        onClick={() => deleteEventMutation.mutate({ id: evt.id, groupId: selectedGroupId })}
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-muted-foreground font-semibold leading-relaxed line-clamp-2 mb-4.5">
-                                    {evt.description || "설명 없음"}
-                                  </p>
-                                  <div className="flex items-center justify-between border-t border-border/50 pt-3 text-[10px] font-bold text-muted-foreground select-none">
-                                    <span>
-                                      {new Date(evt.startDate).toLocaleDateString("ko-KR")} ~ {new Date(evt.endDate).toLocaleDateString("ko-KR")}
-                                    </span>
-                                    <span>
-                                      {isSecret ? "운영진 열람" : "전체 연동"}
-                                    </span>
-                                  </div>
-                                </div>
-                              );
-                            })
+                            groupEvents.map((evt) => (
+                              <GroupEventCard
+                                key={evt.id}
+                                evt={evt}
+                                permissions={permissions}
+                                user={user}
+                                onDelete={() => deleteEventMutation.mutate({ id: evt.id, groupId: selectedGroupId })}
+                                selectedGroupId={selectedGroupId ?? 0}
+                              />
+                            ))
                           )}
                         </div>
                       </div>
@@ -752,28 +727,28 @@ export default function GroupHub() {
                                       </div>
                                     </div>
 
-                                    {!isSelfLeader && (
-                                      <div className="flex items-center gap-2 shrink-0">
-                                        {/* Position Assign Select Box */}
-                                        <select
-                                          value={mb.roleId ?? ""}
-                                          onChange={(e) => {
-                                            const val = e.target.value;
-                                            assignRoleMutation.mutate({
-                                              groupId: selectedGroupId,
-                                              userId: mb.userId,
-                                              roleId: val ? parseInt(val) : null,
-                                            });
-                                          }}
-                                          className="text-xs bg-muted/60 border border-border rounded-xl font-bold px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer w-28 shrink-0"
-                                        >
-                                          <option value="">일반 멤버</option>
-                                          {roles.map((r) => (
-                                            <option key={r.id} value={r.id}>{r.name}</option>
-                                          ))}
-                                        </select>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      {/* Position Assign Select Box */}
+                                      <select
+                                        value={mb.roleId ?? ""}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          assignRoleMutation.mutate({
+                                            groupId: selectedGroupId,
+                                            userId: mb.userId,
+                                            roleId: val ? parseInt(val) : null,
+                                          });
+                                        }}
+                                        className="text-xs bg-muted/60 border border-border rounded-xl font-bold px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer w-28 shrink-0"
+                                      >
+                                        <option value="">일반 멤버</option>
+                                        {roles.map((r) => (
+                                          <option key={r.id} value={r.id}>{r.name}</option>
+                                        ))}
+                                      </select>
 
-                                        {/* Kick/Unlink Button */}
+                                      {/* Kick/Unlink Button */}
+                                      {!isSelfLeader && (
                                         <Button 
                                           variant="ghost" 
                                           size="icon" 
@@ -783,8 +758,8 @@ export default function GroupHub() {
                                         >
                                           <UserX className="w-4.5 h-4.5" />
                                         </Button>
-                                      </div>
-                                    )}
+                                      )}
+                                    </div>
                                   </div>
                                 );
                               })
@@ -925,7 +900,7 @@ export default function GroupHub() {
 
           <div className="space-y-4 my-3">
             <div className="space-y-1.5">
-              <label className="text-xs font-black text-muted-foreground">일정 제목</label>
+              <label className="text-sm font-bold text-muted-foreground">일정 제목</label>
               <Input
                 value={eventTitle}
                 onChange={(e) => setEventTitle(e.target.value)}
@@ -936,7 +911,7 @@ export default function GroupHub() {
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-black text-muted-foreground">일정 내용/메모</label>
+              <label className="text-sm font-bold text-muted-foreground">일정 내용/메모</label>
               <Textarea
                 value={eventDesc}
                 onChange={(e) => setEventDesc(e.target.value)}
@@ -948,7 +923,7 @@ export default function GroupHub() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-black text-muted-foreground">시작일시</label>
+                <label className="text-sm font-bold text-muted-foreground">시작일시</label>
                 <Input
                   type="datetime-local"
                   value={eventStart}
@@ -957,7 +932,7 @@ export default function GroupHub() {
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-black text-muted-foreground">종료일시</label>
+                <label className="text-sm font-bold text-muted-foreground">종료일시</label>
                 <Input
                   type="datetime-local"
                   value={eventEnd}
@@ -970,16 +945,28 @@ export default function GroupHub() {
             {/* Secret schedule checkbox - only shown to users with canViewPrivateEvent permission */}
             {(permissions?.isLeader || permissions?.canViewPrivateEvent || user?.role === "admin") && (
               <div className="flex items-center justify-between p-3.5 bg-amber-50/20 border border-amber-200/40 rounded-2xl mt-2.5">
-                <div className="flex items-start gap-2.5">
+                <div className="flex items-start gap-2.5 max-w-[80%]">
                   <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
                   <div>
-                    <span className="text-xs font-black text-amber-800">이 일정을 비밀 일정으로 지정</span>
-                    <p className="text-[10px] font-semibold text-amber-700/70 mt-0.5">체크 시 일반 부원들에게는 노출되지 않고, 운영진과 리더에게만 실시간 노출됩니다.</p>
+                    <span className="text-sm font-bold text-amber-800">이 일정을 비밀 일정으로 지정</span>
+                    <p className="text-xs font-semibold text-amber-700/70 mt-0.5">체크 시 일반 부원들에게는 노출되지 않고, 운영진과 리더에게만 실시간 노출됩니다.</p>
                   </div>
                 </div>
                 <Switch checked={eventIsPrivate} onCheckedChange={setEventIsPrivate} className="shrink-0" />
               </div>
             )}
+
+            {/* RSVP switch */}
+            <div className="flex items-center justify-between p-3.5 bg-emerald-50/20 border border-emerald-200/40 rounded-2xl mt-2.5">
+              <div className="flex items-start gap-2.5 max-w-[80%]">
+                <Users className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-sm font-bold text-emerald-800">참석 여부 조사 활성화</span>
+                  <p className="text-xs font-semibold text-emerald-700/70 mt-0.5">단원들이 일정 카드에서 참석 / 불참 / 보류를 투표할 수 있습니다.</p>
+                </div>
+              </div>
+              <Switch checked={eventHasRsvp} onCheckedChange={setEventHasRsvp} className="shrink-0" />
+            </div>
           </div>
 
           <DialogFooter className="gap-2">
@@ -1056,8 +1043,166 @@ export default function GroupHub() {
     setEventStart("");
     setEventEnd("");
     setEventIsPrivate(false);
+    setEventHasRsvp(false);
     setEventModalOpen(true);
   }
+}
+
+function GroupEventCard({
+  evt,
+  permissions,
+  user,
+  onDelete,
+  selectedGroupId,
+}: {
+  evt: any;
+  permissions: any;
+  user: any;
+  onDelete: () => void;
+  selectedGroupId: number;
+}) {
+  const isSecret = evt.isPrivate === 1;
+  const hasRsvp = evt.hasRsvp === 1;
+  const utils = trpc.useUtils();
+  const [showRsvpDetails, setShowRsvpDetails] = useState(false);
+
+  // RSVP Query
+  const { data: rsvps = [] } = trpc.group.getEventRsvps.useQuery(
+    { eventId: evt.id },
+    { enabled: hasRsvp }
+  );
+
+  // RSVP Mutation
+  const submitRsvpMutation = trpc.group.submitRsvp.useMutation({
+    onSuccess: () => {
+      utils.group.getEventRsvps.invalidate({ eventId: evt.id });
+      utils.calendar.list.invalidate(); // also update calendar
+      toast.success("참석 여부가 반영되었습니다.");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const myRsvp = rsvps.find((r: any) => r.userId === user?.id);
+  const isLeaderOrAdmin = permissions?.isLeader || user?.role === "admin";
+
+  const attendingCount = rsvps.filter((r: any) => r.status === "attending").length;
+  const absentCount = rsvps.filter((r: any) => r.status === "absent").length;
+  const maybeCount = rsvps.filter((r: any) => r.status === "maybe").length;
+
+  return (
+    <div className={`border rounded-2xl p-4.5 relative group shadow-sm transition-all flex flex-col justify-between ${isSecret ? "bg-amber-50/20 border-amber-200/50 hover:border-amber-300" : "bg-card border-border hover:border-primary/20"}`}>
+      <div>
+        <div className="flex justify-between items-start gap-2 mb-2">
+          <div className="flex items-center gap-2">
+            <h4 className="font-black text-sm text-foreground line-clamp-1">{evt.title}</h4>
+            {isSecret && (
+              <Badge variant="outline" className="bg-amber-100/50 border-amber-300 text-amber-700 text-[9px] font-extrabold px-1.5 py-0 rounded flex items-center gap-1 select-none shrink-0">
+                <Lock className="w-2.5 h-2.5 shrink-0" /> 비밀 일정
+              </Badge>
+            )}
+          </div>
+          {(permissions?.isLeader || permissions?.canManageSchedule || user?.role === "admin") && (
+            <button 
+              className="p-1 rounded bg-transparent text-muted-foreground hover:text-destructive hover:bg-destructive/5 shrink-0 transition-colors opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+              onClick={onDelete}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        <p className="text-xs text-muted-foreground font-semibold leading-relaxed mb-4">
+          {evt.description || "설명 없음"}
+        </p>
+
+        {hasRsvp && (
+          <div className="mb-4 bg-muted/30 border border-border/30 rounded-xl p-3 space-y-3">
+            <div className="flex items-center justify-between text-[11px] font-black text-muted-foreground">
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <Users className="w-3 h-3" /> 참석 여부 투표
+              </span>
+              <span>{rsvps.length}명 참여</span>
+            </div>
+
+            <div className="flex gap-1.5">
+              {[
+                { status: "attending", label: "참석", color: "bg-emerald-500 hover:bg-emerald-600 text-white border-emerald-500", inactive: "bg-background hover:bg-emerald-55 text-muted-foreground border-border hover:text-emerald-600 hover:border-emerald-250 dark:hover:bg-emerald-950/20" },
+                { status: "absent", label: "불참", color: "bg-rose-500 hover:bg-rose-600 text-white border-rose-500", inactive: "bg-background hover:bg-rose-55 text-muted-foreground border-border hover:text-rose-600 hover:border-rose-250 dark:hover:bg-rose-950/20" },
+                { status: "maybe", label: "보류", color: "bg-amber-500 hover:bg-amber-600 text-white border-amber-500", inactive: "bg-background hover:bg-amber-55 text-muted-foreground border-border hover:text-amber-600 hover:border-amber-250 dark:hover:bg-amber-950/20" },
+              ].map((btn) => {
+                const isSelected = myRsvp?.status === btn.status;
+                return (
+                  <Button
+                    key={btn.status}
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => submitRsvpMutation.mutate({
+                      eventId: evt.id,
+                      status: btn.status as "attending" | "absent" | "maybe"
+                    })}
+                    className={cn(
+                      "flex-1 rounded-lg font-bold text-[11px] h-7 px-1 transition-all cursor-pointer border",
+                      isSelected ? btn.color : btn.inactive
+                    )}
+                    disabled={submitRsvpMutation.isPending}
+                  >
+                    {btn.label}
+                  </Button>
+                );
+              })}
+            </div>
+
+            {/* RSVP Counts */}
+            <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground border-t border-border/30 pt-2 px-0.5">
+              <span className="text-emerald-600 dark:text-emerald-400">참석 {attendingCount}</span>
+              <span className="text-rose-600 dark:text-rose-400">불참 {absentCount}</span>
+              <span className="text-amber-600 dark:text-amber-400">보류 {maybeCount}</span>
+            </div>
+
+            {/* Leader-only detailed members view */}
+            {isLeaderOrAdmin && rsvps.length > 0 && (
+              <div className="border-t border-border/30 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRsvpDetails(!showRsvpDetails)}
+                  className="text-[10px] font-bold text-primary hover:underline flex items-center gap-0.5 cursor-pointer"
+                >
+                  {showRsvpDetails ? "상세 명단 접기 ▲" : "리더 권한: 상세 명단 보기 ▼"}
+                </button>
+                
+                {showRsvpDetails && (
+                  <div className="mt-2 space-y-1.5 text-[10px] text-muted-foreground bg-background/50 rounded-lg p-2 max-h-24 overflow-y-auto font-medium">
+                    {rsvps.map((r: any) => (
+                      <div key={r.id} className="flex justify-between items-center">
+                        <span className="font-bold text-foreground">{r.userRealName ?? r.userName}</span>
+                        <span className={cn(
+                          "px-1 py-0.2 rounded text-[9px] font-black",
+                          r.status === "attending" ? "bg-emerald-500/10 text-emerald-600" :
+                          r.status === "absent" ? "bg-rose-500/10 text-rose-600" :
+                          "bg-amber-500/10 text-amber-600"
+                        )}>
+                          {r.status === "attending" ? "참석" : r.status === "absent" ? "불참" : "보류"}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between border-t border-border/50 pt-3 text-[10px] font-bold text-muted-foreground select-none mt-2">
+        <span>
+          {new Date(evt.startDate).toLocaleDateString("ko-KR")} ~ {new Date(evt.endDate).toLocaleDateString("ko-KR")}
+        </span>
+        <span>
+          {isSecret ? "운영진 열람" : "전체 연동"}
+        </span>
+      </div>
+    </div>
+  );
 }
 
 // Sidebar list component to reuse

@@ -166,7 +166,6 @@ export default function CalendarPage() {
   const [accessKey, setAccessKey] = useState("");
   const [isGroupSectionExpanded, setIsGroupSectionExpanded] = useState(false);
   const [isThemeOpen, setIsThemeOpen] = useState(false);
-  const [todoContent, setTodoContent] = useState("");
 
   // tRPC 쿼리 및 뮤테이션
   const { data: rawEvents = [], isLoading, refetch } = trpc.calendar.list.useQuery(undefined, {
@@ -195,40 +194,7 @@ export default function CalendarPage() {
     return THEME_COLORS[colorKey] || THEME_COLORS[DEFAULT_CATEGORY_COLORS[category]];
   };
 
-  // 투두 리스트 쿼리 및 뮤테이션
-  const todoDateStr = format(selectedDate, "yyyy-MM-dd");
-  const { data: todos = [], refetch: refetchTodos } = trpc.calendar.listTodos.useQuery(
-    { date: todoDateStr },
-    { enabled: isAuthenticated }
-  );
 
-  const createTodoMutation = trpc.calendar.createTodo.useMutation({
-    onSuccess: () => {
-      setTodoContent("");
-      refetchTodos();
-    },
-    onError: (err) => {
-      toast.error(err.message || "할 일 등록 실패");
-    },
-  });
-
-  const toggleTodoMutation = trpc.calendar.toggleTodo.useMutation({
-    onSuccess: () => {
-      refetchTodos();
-    },
-    onError: (err) => {
-      toast.error(err.message || "상태 변경 실패");
-    },
-  });
-
-  const deleteTodoMutation = trpc.calendar.deleteTodo.useMutation({
-    onSuccess: () => {
-      refetchTodos();
-    },
-    onError: (err) => {
-      toast.error(err.message || "할 일 삭제 실패");
-    },
-  });
 
   // 특정 그룹 일정 RSVP 현황 조회
   const { data: rsvps = [], refetch: refetchRsvps } = trpc.group.getEventRsvps.useQuery(
@@ -810,7 +776,7 @@ export default function CalendarPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => setIsThemeOpen(true)}
-                    className="h-8 px-2.5 rounded-xl border border-border/60 hover:bg-muted/40 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+                    className="h-8 px-3 rounded-xl bg-primary/10 border border-primary/25 text-primary hover:bg-primary/20 hover:scale-[1.02] active:scale-[0.98] font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-all shadow-xs"
                   >
                     <Tag className="w-3.5 h-3.5 text-primary" />
                     색상 설정
@@ -851,27 +817,43 @@ export default function CalendarPage() {
             </div>
 
             {/* 하단 범례 */}
-            <div className="flex flex-wrap gap-6 mt-6 pt-4 border-t border-border/60 justify-center text-xs font-semibold text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("holiday").dot)} />
-                <span>공휴일 / 일요일</span>
+            <div className="flex flex-col gap-4 mt-6 pt-4 border-t border-border/60">
+              <div className="flex flex-wrap gap-6 justify-center text-xs font-semibold text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("holiday").dot)} />
+                  <span>공휴일 / 일요일</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("academic").dot)} />
+                  <span>학사일정</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("recruitment").dot)} />
+                  <span>모집 마감일</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("personal").dot)} />
+                  <span>개인 일정</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("group").dot)} />
+                  <span>그룹 일정</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("academic").dot)} />
-                <span>학사일정</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("recruitment").dot)} />
-                <span>모집 마감일</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("personal").dot)} />
-                <span>개인 일정</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={cn("w-3 h-3 rounded-full shadow-xs", getCategoryStyle("group").dot)} />
-                <span>그룹 일정</span>
-              </div>
+              
+              {isAuthenticated && (
+                <div className="flex items-center justify-center gap-1.5 text-[11px] font-bold text-muted-foreground/85 bg-muted/20 py-2 px-4 rounded-xl border border-border/40 max-w-sm mx-auto select-none mt-1">
+                  <Tag className="w-3.5 h-3.5 text-primary shrink-0" />
+                  <span>일정 카테고리 색상은 상단 </span>
+                  <button 
+                    onClick={() => setIsThemeOpen(true)}
+                    className="text-primary hover:underline cursor-pointer font-black"
+                  >
+                    [색상 설정]
+                  </button>
+                  <span>에서 변경할 수 있습니다.</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -947,99 +929,7 @@ export default function CalendarPage() {
               </div>
             </div>
 
-            {/* 투두(Todo) 위젯 */}
-            {isAuthenticated && (
-              <div className="bg-card/65 backdrop-blur-md rounded-3xl border border-border p-6 shadow-md">
-                <div className="flex items-center justify-between border-b border-border/40 pb-2 mb-3">
-                  <h2 className="text-md font-black text-foreground flex items-center gap-2">
-                    <CalendarCheck className="w-4.5 h-4.5 text-primary" />
-                    {format(selectedDate, "M월 d일")} 할 일
-                  </h2>
-                  <Badge variant="secondary" className="font-bold text-[10px] px-2 py-0.5 rounded-full">
-                    {todos.filter(t => t.isCompleted === 1).length}/{todos.length} 완료
-                  </Badge>
-                </div>
 
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!todoContent.trim()) return;
-                    createTodoMutation.mutate({
-                      date: todoDateStr,
-                      content: todoContent.trim(),
-                    });
-                  }}
-                  className="flex gap-2 mb-3"
-                >
-                  <Input
-                    placeholder="오늘 할 일을 추가해보세요..."
-                    value={todoContent}
-                    onChange={(e) => setTodoContent(e.target.value)}
-                    className="h-9 text-xs rounded-xl bg-card border-border"
-                    maxLength={150}
-                  />
-                  <Button
-                    type="submit"
-                    size="sm"
-                    className="h-9 px-3 rounded-xl font-bold bg-primary text-primary-foreground shrink-0 cursor-pointer text-xs"
-                    disabled={createTodoMutation.isPending}
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                  </Button>
-                </form>
-
-                <div className="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
-                  {todos.length === 0 ? (
-                    <div className="text-center py-6 text-muted-foreground/60 text-xs font-semibold">
-                      할 일이 아직 등록되지 않았습니다.
-                    </div>
-                  ) : (
-                    todos.map((todo) => (
-                      <div
-                        key={todo.id}
-                        className="group flex items-center justify-between p-2 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-all text-xs"
-                      >
-                        <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <button
-                            type="button"
-                            onClick={() => toggleTodoMutation.mutate({ id: todo.id })}
-                            className="text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
-                          >
-                            {todo.isCompleted === 1 ? (
-                              <CheckCircle className="w-4 h-4 text-emerald-500 fill-emerald-500/10" />
-                            ) : (
-                              <div className="w-4 h-4 rounded-full border border-muted-foreground/60 hover:border-primary" />
-                            )}
-                          </button>
-                          <span
-                            className={cn(
-                              "truncate font-medium transition-all select-none cursor-pointer text-left",
-                              todo.isCompleted === 1
-                                ? "line-through text-muted-foreground/50 font-normal"
-                                : "text-foreground"
-                            )}
-                            onClick={() => toggleTodoMutation.mutate({ id: todo.id })}
-                          >
-                            {todo.content}
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (confirm("이 할 일을 삭제하시겠습니까?")) {
-                              deleteTodoMutation.mutate({ id: todo.id });
-                            }
-                          }}
-                          className="opacity-0 group-hover:opacity-100 hover:text-destructive transition-all p-1 text-muted-foreground shrink-0 cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
 
             {/* 2. 전체 어젠다 리스트 */}
             <div className="bg-card/65 backdrop-blur-md rounded-3xl border border-border p-6 shadow-md flex-1 flex flex-col lg:min-h-0 min-h-[300px]">
@@ -1378,10 +1268,10 @@ export default function CalendarPage() {
                         return (
                           <div className="flex items-center justify-between p-3 py-2.5 bg-amber-50/20 border border-amber-200/40 rounded-xl mt-3">
                             <div className="flex items-start gap-2.5">
-                              <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                              <Lock className="w-4.5 h-4.5 text-amber-600 shrink-0 mt-0.5" />
                               <div className="text-left">
-                                <span className="text-[11px] font-black text-amber-800">이 일정을 비밀 일정으로 지정</span>
-                                <p className="text-[9px] font-semibold text-amber-700/70 mt-0.5 leading-snug">운영진과 리더에게만 노출되고 일반 단원들에게는 가려집니다.</p>
+                                <span className="text-xs font-bold text-amber-800">이 일정을 비밀 일정으로 지정</span>
+                                <p className="text-[10px] font-medium text-amber-750/70 mt-0.5 leading-snug">운영진과 리더에게만 노출되고 일반 단원들에게는 가려집니다.</p>
                               </div>
                             </div>
                             <Switch checked={newIsPrivate} onCheckedChange={setNewIsPrivate} className="shrink-0" />
@@ -1392,10 +1282,10 @@ export default function CalendarPage() {
                       {/* RSVP 참석 여부 조사 토글 */}
                       <div className="flex items-center justify-between p-3 py-2.5 bg-emerald-50/20 border border-emerald-250/20 rounded-xl mt-2.5 font-sans">
                         <div className="flex items-start gap-2.5">
-                          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                          <CheckCircle className="w-4.5 h-4.5 text-emerald-600 shrink-0 mt-0.5" />
                           <div className="text-left">
-                            <span className="text-[11px] font-black text-emerald-800 dark:text-emerald-300">참석 여부 조사 활성화</span>
-                            <p className="text-[9px] font-semibold text-emerald-700/70 dark:text-emerald-400/70 mt-0.5 leading-snug">
+                            <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">참석 여부 조사 활성화</span>
+                            <p className="text-[10px] font-medium text-emerald-700/70 dark:text-emerald-400/70 mt-0.5 leading-snug">
                               단원들이 일정 카드에서 참석 / 불참 / 보류를 투표할 수 있습니다.
                             </p>
                           </div>
@@ -1738,10 +1628,10 @@ export default function CalendarPage() {
                         return (
                           <div className="flex items-center justify-between p-3 py-2.5 bg-amber-50/20 border border-amber-200/40 rounded-xl">
                             <div className="flex items-start gap-2.5">
-                              <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                              <Lock className="w-4.5 h-4.5 text-amber-600 shrink-0 mt-0.5" />
                               <div className="text-left">
-                                <span className="text-[11px] font-black text-amber-800">이 일정을 비밀 일정으로 지정</span>
-                                <p className="text-[9px] font-semibold text-amber-700/70 mt-0.5 leading-snug">운영진과 리더에게만 노출되고 일반 단원들에게는 가려집니다.</p>
+                                <span className="text-xs font-bold text-amber-800">이 일정을 비밀 일정으로 지정</span>
+                                <p className="text-[10px] font-medium text-amber-750/70 mt-0.5 leading-snug">운영진과 리더에게만 노출되고 일반 단원들에게는 가려집니다.</p>
                               </div>
                             </div>
                             <Switch checked={editIsPrivate} onCheckedChange={setEditIsPrivate} className="shrink-0" />
@@ -1753,10 +1643,10 @@ export default function CalendarPage() {
                       {selectedEvent.category === "group" && (
                         <div className="flex items-center justify-between p-3 py-2.5 bg-emerald-50/20 border border-emerald-250/20 rounded-xl mt-2.5 font-sans">
                           <div className="flex items-start gap-2.5">
-                            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                            <CheckCircle className="w-4.5 h-4.5 text-emerald-600 shrink-0 mt-0.5" />
                             <div className="text-left">
-                              <span className="text-[11px] font-black text-emerald-800 dark:text-emerald-300">참석 여부 조사 활성화</span>
-                              <p className="text-[9px] font-semibold text-emerald-700/70 dark:text-emerald-400/70 mt-0.5 leading-snug">
+                              <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">참석 여부 조사 활성화</span>
+                              <p className="text-[10px] font-medium text-emerald-700/70 dark:text-emerald-400/70 mt-0.5 leading-snug">
                                 단원들이 일정 카드에서 참석 / 불참 / 보류를 투표할 수 있습니다.
                               </p>
                             </div>

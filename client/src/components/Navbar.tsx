@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Users, GraduationCap, PenSquare, LogOut, User, LayoutDashboard, ShieldAlert, MessageSquare, Search, UserX, AlertTriangle, ShieldCheck, Calendar, Menu, Sun, Moon } from "lucide-react";
+import { BookOpen, Users, GraduationCap, PenSquare, LogOut, User, LayoutDashboard, ShieldAlert, MessageSquare, Search, UserX, AlertTriangle, ShieldCheck, Calendar, Menu, Sun, Moon, ListTodo } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -171,6 +171,14 @@ export default function Navbar() {
                       <Link href="/calendar" className="flex items-center gap-2 cursor-pointer rounded-xl py-2 px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
                         <Calendar className="w-4 h-4" />
                         마이캘린더
+                      </Link>
+                    </DropdownMenuItem>
+
+                    {/* 마이투두 링크 */}
+                    <DropdownMenuItem asChild>
+                      <Link href="/todo" className="flex items-center gap-2 cursor-pointer rounded-xl py-2 px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
+                        <ListTodo className="w-4 h-4" />
+                        마이투두
                       </Link>
                     </DropdownMenuItem>
 

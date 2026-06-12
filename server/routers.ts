@@ -935,6 +935,7 @@ export const appRouter = router({
           startDate: new Date(input.startDate),
           endDate: new Date(input.endDate),
           category: "personal",
+          groupId: null,
         });
       }),
 
@@ -1367,6 +1368,7 @@ export const appRouter = router({
         }
 
         return createGroupCalendarEvent({
+          userId: null,
           groupId: input.groupId,
           title: input.title,
           description: input.description ?? null,

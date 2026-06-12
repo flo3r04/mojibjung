@@ -81,9 +81,10 @@ export async function getDb() {
       const queryClient = postgres(process.env.DATABASE_URL);
       _db = drizzle(queryClient);
 
-      // [보안 인증용 emailVerifications 테이블 강제 자동 싱크]
+      // [보안 인증용 emailVerifications 및 신규 고도화 캘린더 기능 테이블 강제 자동 싱크]
       // Render 환경 등에서 마이그레이션 툴이 꼬였을 때를 대비한 수동 DDL 동기화 레이어
       (async () => {
+        // 1. emailVerifications 테이블 생성
         try {
           await _db!.execute(sql`
             CREATE TABLE IF NOT EXISTS "emailVerifications" (
@@ -99,17 +100,82 @@ export async function getDb() {
               "createdAt" timestamp DEFAULT now() NOT NULL
             );
           `);
-          
           await _db!.execute(sql`
             CREATE INDEX IF NOT EXISTS "emailVerifications_userId_idx" ON "emailVerifications" ("userId");
           `);
           await _db!.execute(sql`
             CREATE INDEX IF NOT EXISTS "emailVerifications_email_idx" ON "emailVerifications" ("email");
           `);
-          
           console.log("[Database] emailVerifications 테이블 DDL 싱크 완료");
+        } catch (emailError) {
+          console.error("[Database] emailVerifications 테이블 DDL 싱크 실패:", emailError);
+        }
 
-          // [학사일정 및 공휴일 자동 시딩]
+        // 2. calendar_events 테이블에 hasRsvp 컬럼 추가
+        try {
+          await _db!.execute(sql`
+            ALTER TABLE "calendar_events" ADD COLUMN IF NOT EXISTS "hasRsvp" integer DEFAULT 0 NOT NULL;
+          `);
+          console.log("[Database] calendar_events 테이블 hasRsvp 컬럼 DDL 싱크 완료");
+        } catch (alterError) {
+          console.warn("[Database] calendar_events 컬럼 추가 실패 (이미 존재할 수 있음):", alterError);
+        }
+
+        // 3. event_rsvps 테이블 생성
+        try {
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "event_rsvps" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "eventId" integer NOT NULL,
+              "userId" integer NOT NULL,
+              "status" varchar(20) NOT NULL,
+              "updatedAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+          await _db!.execute(sql`
+            CREATE UNIQUE INDEX IF NOT EXISTS "unique_event_rsvp" ON "event_rsvps" ("eventId", "userId");
+          `);
+          console.log("[Database] event_rsvps 테이블 DDL 싱크 완료");
+        } catch (rsvpError) {
+          console.error("[Database] event_rsvps 테이블 생성 실패:", rsvpError);
+        }
+
+        // 4. user_calendar_themes 테이블 생성
+        try {
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "user_calendar_themes" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "userId" integer NOT NULL,
+              "category" varchar(50) NOT NULL,
+              "color" varchar(20) NOT NULL
+            );
+          `);
+          await _db!.execute(sql`
+            CREATE UNIQUE INDEX IF NOT EXISTS "unique_user_calendar_theme" ON "user_calendar_themes" ("userId", "category");
+          `);
+          console.log("[Database] user_calendar_themes 테이블 DDL 싱크 완료");
+        } catch (themeError) {
+          console.error("[Database] user_calendar_themes 테이블 생성 실패:", themeError);
+        }
+
+        // 5. calendar_todos 테이블 생성
+        try {
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "calendar_todos" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "userId" integer NOT NULL,
+              "date" varchar(10) NOT NULL,
+              "content" text NOT NULL,
+              "isCompleted" integer DEFAULT 0 NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+          console.log("[Database] calendar_todos 테이블 DDL 싱크 완료");
+        } catch (todoError) {
+          console.error("[Database] calendar_todos 테이블 생성 실패:", todoError);
+        }
+
+        // 6. 학사일정 및 공휴일 자동 시딩
           try {
             const eventCountResult = await _db!.execute(sql`
               SELECT COUNT(*)::int as count FROM "calendar_events" WHERE "category" = 'academic'
@@ -403,7 +469,7 @@ export async function getProfileByUserId(userId: number) {
   const result = await db
     .select({
       profile: profiles,
-      name: users.name,
+      name: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
       avatarUrl: users.avatarUrl,
       email: users.email,
     })
@@ -585,7 +651,7 @@ export async function listPosts(opts: {
     const query = db
       .select({
         post: posts,
-        authorName: users.name,
+        authorName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
         authorAvatarUrl: users.avatarUrl,
         likeCount: sql<number>`(SELECT count(*)::int FROM likes WHERE likes."postId" = posts.id)`,
         commentCount: sql<number>`(SELECT count(*)::int FROM comments WHERE comments."postId" = posts.id)`,
@@ -610,7 +676,7 @@ export async function listPosts(opts: {
       const fallbackQuery = db
         .select({
           post: posts,
-          authorName: users.name,
+          authorName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
           authorAvatarUrl: users.avatarUrl,
         })
         .from(posts)
@@ -635,7 +701,7 @@ export async function getPostById(id: number, userId?: number) {
     const result = await db
       .select({
         post: posts,
-        authorName: users.name,
+        authorName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
         authorOpenId: users.openId,
         authorAvatarUrl: users.avatarUrl,
         authorKeywords: profiles.keywords,
@@ -749,7 +815,7 @@ export async function getPostsByAuthor(authorId: number) {
     const result = await db
       .select({
         post: posts,
-        authorName: users.name,
+        authorName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
         authorAvatarUrl: users.avatarUrl,
         likeCount: sql<number>`(SELECT count(*)::int FROM likes WHERE likes."postId" = posts.id)`,
         commentCount: sql<number>`(SELECT count(*)::int FROM comments WHERE comments."postId" = posts.id)`,
@@ -799,7 +865,7 @@ export async function getCommentsByPost(postId: number, userId?: number) {
   return db
     .select({
       comment: comments,
-      authorName: users.name,
+      authorName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
       authorAvatarUrl: users.avatarUrl,
     })
     .from(comments)
@@ -880,7 +946,7 @@ export async function getBookmarkedPosts(userId: number) {
     const result = await db
       .select({
         post: posts,
-        authorName: users.name,
+        authorName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
         authorAvatarUrl: users.avatarUrl,
         likeCount: sql<number>`(SELECT count(*)::int FROM likes WHERE likes."postId" = posts.id)`,
         commentCount: sql<number>`(SELECT count(*)::int FROM comments WHERE comments."postId" = posts.id)`,
@@ -900,7 +966,7 @@ export async function getBookmarkedPosts(userId: number) {
     console.warn("[Database] getBookmarkedPosts 쿼리 실패:", error);
     try {
       const fallback = await db
-        .select({ post: posts, authorName: users.name })
+        .select({ post: posts, authorName: sql<string | null>`coalesce(${users.realName}, ${users.name})` })
         .from(bookmarks)
         .innerJoin(posts, eq(bookmarks.postId, posts.id))
         .leftJoin(users, eq(posts.authorId, users.id))
@@ -964,7 +1030,7 @@ export async function getApplicationsByPost(postId: number) {
   return db
     .select({
       application: applications,
-      applicantName: users.name,
+      applicantName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
       applicantOpenId: users.openId,
       applicantId: users.id,
     })
@@ -1044,7 +1110,7 @@ export async function getRecommendedPosts(userId: number, limit = 6) {
     const baseQuery = db
       .select({
         post: posts,
-        authorName: users.name,
+        authorName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
         authorAvatarUrl: users.avatarUrl,
         likeCount: sql<number>`(SELECT count(*)::int FROM likes WHERE likes."postId" = posts.id)`,
         commentCount: sql<number>`(SELECT count(*)::int FROM comments WHERE comments."postId" = posts.id)`,
@@ -1103,7 +1169,7 @@ export async function getRecommendedPosts(userId: number, limit = 6) {
     const allPosts = await db
       .select({
         post: posts,
-        authorName: users.name,
+        authorName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
         authorAvatarUrl: users.avatarUrl,
         likeCount: sql<number>`(SELECT count(*)::int FROM likes WHERE likes."postId" = posts.id)`,
         commentCount: sql<number>`(SELECT count(*)::int FROM comments WHERE comments."postId" = posts.id)`,
@@ -1577,7 +1643,7 @@ export async function listReports() {
   return db
     .select({
       report: reports,
-      reporterName: users.name,
+      reporterName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
       reporterEmail: users.email,
     })
     .from(reports)
@@ -2065,7 +2131,7 @@ export async function getAllGroups() {
       id: groups.id,
       name: groups.name,
       leaderId: groups.leaderId,
-      leaderName: users.name,
+      leaderName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
       accessKey: groups.accessKey,
       createdAt: groups.createdAt,
     })
@@ -2201,7 +2267,7 @@ export async function getUserJoinedAndLedGroups(userId: number) {
       id: groups.id,
       name: groups.name,
       leaderId: groups.leaderId,
-      leaderName: users.name,
+      leaderName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
       accessKey: groups.accessKey,
       createdAt: groups.createdAt,
     })
@@ -2247,7 +2313,7 @@ export async function getGroupAnnouncements(groupId: number) {
       content: groupAnnouncements.content,
       createdAt: groupAnnouncements.createdAt,
       authorId: users.id,
-      authorName: users.name,
+      authorName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
       authorRealName: users.realName,
       authorAvatarUrl: users.avatarUrl,
     })
@@ -2283,7 +2349,7 @@ export async function getGroupChatMessages(groupId: number, limit = 100) {
       content: groupChatMessages.content,
       createdAt: groupChatMessages.createdAt,
       senderId: users.id,
-      senderName: users.name,
+      senderName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
       senderRealName: users.realName,
       senderAvatarUrl: users.avatarUrl,
     })
