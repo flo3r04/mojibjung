@@ -1842,6 +1842,14 @@ function GroupStudiesSection({
     onError: (err) => toast.error(err.message),
   });
 
+  const deleteStudyMutation = trpc.group.deleteSubStudy.useMutation({
+    onSuccess: () => {
+      utils.group.listSubStudies.invalidate({ groupId });
+      toast.success("스터디가 삭제되었습니다.");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
   const handleCreateStudySubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStudyLeaderId) {
@@ -1918,13 +1926,30 @@ function GroupStudiesSection({
               className="group border border-border/60 hover:border-primary/20 bg-card rounded-2xl p-5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between"
             >
               <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-primary/10 text-primary font-mono">
-                    스터디
-                  </span>
-                  <span className="text-[10px] font-bold text-muted-foreground">
-                    방장: {s.leaderName}
-                  </span>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-primary/10 text-primary font-mono">
+                      스터디
+                    </span>
+                    <span className="text-[10px] font-bold text-muted-foreground">
+                      방장: {s.leaderName}
+                    </span>
+                  </div>
+                  {(isLeader || user?.role === "admin") && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`'${s.name}' 스터디를 정말 삭제하시겠습니까? 관련 팀원 지정 및 작성된 모든 회의록 데이터가 함께 영구 삭제됩니다.`)) {
+                          deleteStudyMutation.mutate({ id: s.id, groupId });
+                        }
+                      }}
+                      className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-all cursor-pointer"
+                      title="스터디 삭제"
+                      disabled={deleteStudyMutation.isPending}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
                 <h4 className="font-black text-sm text-foreground group-hover:text-primary transition-colors">
                   {s.name}

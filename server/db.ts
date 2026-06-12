@@ -2818,3 +2818,19 @@ export async function deleteGroupStudyMinute(id: number) {
   if (!db) throw new Error("DB 사용 불가능");
   await db.delete(groupStudyMinutes).where(eq(groupStudyMinutes.id, id));
 }
+
+export async function deleteGroupStudy(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("DB 사용 불가능");
+
+  return db.transaction(async (tx) => {
+    // 1. 스터디원 삭제
+    await tx.delete(groupStudyMembers).where(eq(groupStudyMembers.studyId, id));
+
+    // 2. 회의록 삭제
+    await tx.delete(groupStudyMinutes).where(eq(groupStudyMinutes.studyId, id));
+
+    // 3. 스터디 본체 삭제
+    await tx.delete(groupStudies).where(eq(groupStudies.id, id));
+  });
+}

@@ -90,6 +90,7 @@ import {
   createGroupStudyMinute,
   updateGroupStudyMinute,
   deleteGroupStudyMinute,
+  deleteGroupStudy,
 } from "./db";
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -2062,6 +2063,21 @@ export const appRouter = router({
         }
 
         return study;
+      }),
+
+    // 하위 스터디 삭제
+    deleteSubStudy: protectedVerifiedProcedure
+      .input(z.object({ id: z.number(), groupId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
+        if (!perm.isLeader && ctx.user.role !== "admin") {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "그룹 리더만 하위 스터디를 삭제할 수 있습니다.",
+          });
+        }
+        await deleteGroupStudy(input.id);
+        return { success: true };
       }),
 
     // 하위 스터디 목록 조회
