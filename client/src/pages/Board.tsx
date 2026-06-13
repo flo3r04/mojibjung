@@ -28,21 +28,42 @@ export default function Board() {
   const urlParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
   const initialCategory = (urlParams.get("category") as Category) || "전체";
 
-  const [selectedCategory, setSelectedCategory] = useState<Category | "전체">(initialCategory);
+  const getCategoryFromUrl = () => {
+    const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+    const cat = params.get("category") as Category;
+    return (cat && ["동아리", "학회", "스터디"].includes(cat)) ? cat : "전체";
+  };
+
+  const [selectedCategory, setSelectedCategory] = useState<Category | "전체">(getCategoryFromUrl());
   const [keyword, setKeyword] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [sort, setSort] = useState<SortType>("latest");
   const [statusFilter, setStatusFilter] = useState<StatusType | "전체">("모집중");
 
   useEffect(() => {
-    const params = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
-    const cat = params.get("category") as Category;
-    if (cat && ["동아리", "학회", "스터디"].includes(cat)) {
-      setSelectedCategory(cat);
-    } else {
-      setSelectedCategory("전체");
-    }
+    const handleLocationChange = () => {
+      setSelectedCategory(getCategoryFromUrl());
+    };
+
+    window.addEventListener("locationchange", handleLocationChange);
+    window.addEventListener("popstate", handleLocationChange);
+
+    // Initial check
+    handleLocationChange();
+
+    return () => {
+      window.removeEventListener("locationchange", handleLocationChange);
+      window.removeEventListener("popstate", handleLocationChange);
+    };
   }, [location]);
+
+  const handleCategoryClick = (category: Category | "전체") => {
+    if (category === "전체") {
+      setLocation("/board");
+    } else {
+      setLocation(`/board?category=${encodeURIComponent(category)}`);
+    }
+  };
 
   const { data: posts, isLoading } = trpc.post.list.useQuery({
     category: selectedCategory === "전체" ? undefined : selectedCategory,
@@ -85,7 +106,7 @@ export default function Board() {
             {CATEGORIES.map((cat) => (
               <button
                 key={cat.key}
-                onClick={() => setSelectedCategory(cat.key)}
+                onClick={() => handleCategoryClick(cat.key)}
                 className={`whitespace-nowrap px-3.5 py-1.5 rounded-full text-sm font-bold transition-colors ${
                   selectedCategory === cat.key
                     ? "bg-primary text-primary-foreground shadow-sm"

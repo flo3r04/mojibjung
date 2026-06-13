@@ -7,6 +7,25 @@ import superjson from "superjson";
 import App from "./App";
 import { getLoginUrl } from "./const";
 import "./index.css";
+
+// Patch history methods to dispatch custom events for location changes (useful for detecting query parameter changes)
+if (typeof window !== "undefined") {
+  const patchHistoryMethod = (type: "pushState" | "replaceState") => {
+    const original = window.history[type];
+    window.history[type] = function (...args) {
+      const result = original.apply(this, args);
+      const event = new Event(type.toLowerCase());
+      window.dispatchEvent(event);
+      window.dispatchEvent(new Event("locationchange"));
+      return result;
+    };
+  };
+  patchHistoryMethod("pushState");
+  patchHistoryMethod("replaceState");
+  window.addEventListener("popstate", () => {
+    window.dispatchEvent(new Event("locationchange"));
+  });
+}
  
 const getBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) return import.meta.env.VITE_API_URL;

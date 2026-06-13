@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,22 @@ export default function Navbar() {
   const [location, setLocation] = useLocation();
   const { theme, toggleTheme } = useTheme();
 
+  const [currentSearch, setCurrentSearch] = useState(typeof window !== "undefined" ? window.location.search : "");
+
+  useEffect(() => {
+    const handleLocationChange = () => {
+      setCurrentSearch(window.location.search);
+    };
+
+    window.addEventListener("locationchange", handleLocationChange);
+    window.addEventListener("popstate", handleLocationChange);
+
+    return () => {
+      window.removeEventListener("locationchange", handleLocationChange);
+      window.removeEventListener("popstate", handleLocationChange);
+    };
+  }, []);
+
   const [withdrawConfirmText, setWithdrawConfirmText] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -50,11 +66,11 @@ export default function Navbar() {
 
   const isActive = (path: string) => {
     if (path === "/board") {
-      return location === "/board" && (typeof window !== "undefined" ? !window.location.search : true);
+      return location === "/board" && !currentSearch;
     }
     if (path.startsWith("/board?category=")) {
       const cat = path.split("=")[1];
-      const currentParams = new URLSearchParams(typeof window !== "undefined" ? window.location.search : "");
+      const currentParams = new URLSearchParams(currentSearch);
       return location === "/board" && currentParams.get("category") === decodeURIComponent(cat);
     }
     return location === path;
