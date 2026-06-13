@@ -550,26 +550,6 @@ export default function PostManage() {
                       answers={application.answers}
                       introduction={application.introduction}
                       postSchema={postData.post.formSchema}
-                      onRejectClick={() => {
-                        setRejectAppId(application.id);
-                        setRejectReason(application.rejectReason || "");
-                      }}
-                      onAcceptClick={() => {
-                        updateStatusMutation.mutate({
-                          applicationId: application.id,
-                          status: "수락",
-                        });
-                      }}
-                      onInterviewClick={() => {
-                        setInterviewAppId(application.id);
-                        setInterviewDetails("");
-                      }}
-                      onResetToPendingClick={() => {
-                        updateStatusMutation.mutate({
-                          applicationId: application.id,
-                          status: "대기중",
-                        });
-                      }}
                     />
                   ))}
                 </DroppableColumn>
@@ -585,26 +565,6 @@ export default function PostManage() {
                       answers={application.answers}
                       introduction={application.introduction}
                       postSchema={postData.post.formSchema}
-                      onRejectClick={() => {
-                        setRejectAppId(application.id);
-                        setRejectReason(application.rejectReason || "");
-                      }}
-                      onAcceptClick={() => {
-                        updateStatusMutation.mutate({
-                          applicationId: application.id,
-                          status: "수락",
-                        });
-                      }}
-                      onInterviewClick={() => {
-                        setInterviewAppId(application.id);
-                        setInterviewDetails("");
-                      }}
-                      onResetToPendingClick={() => {
-                        updateStatusMutation.mutate({
-                          applicationId: application.id,
-                          status: "대기중",
-                        });
-                      }}
                     />
                   ))}
                 </DroppableColumn>
@@ -620,26 +580,6 @@ export default function PostManage() {
                       answers={application.answers}
                       introduction={application.introduction}
                       postSchema={postData.post.formSchema}
-                      onRejectClick={() => {
-                        setRejectAppId(application.id);
-                        setRejectReason(application.rejectReason || "");
-                      }}
-                      onAcceptClick={() => {
-                        updateStatusMutation.mutate({
-                          applicationId: application.id,
-                          status: "수락",
-                        });
-                      }}
-                      onInterviewClick={() => {
-                        setInterviewAppId(application.id);
-                        setInterviewDetails("");
-                      }}
-                      onResetToPendingClick={() => {
-                        updateStatusMutation.mutate({
-                          applicationId: application.id,
-                          status: "대기중",
-                        });
-                      }}
                     />
                   ))}
                 </DroppableColumn>
@@ -655,26 +595,6 @@ export default function PostManage() {
                       answers={application.answers}
                       introduction={application.introduction}
                       postSchema={postData.post.formSchema}
-                      onRejectClick={() => {
-                        setRejectAppId(application.id);
-                        setRejectReason(application.rejectReason || "");
-                      }}
-                      onAcceptClick={() => {
-                        updateStatusMutation.mutate({
-                          applicationId: application.id,
-                          status: "수락",
-                        });
-                      }}
-                      onInterviewClick={() => {
-                        setInterviewAppId(application.id);
-                        setInterviewDetails("");
-                      }}
-                      onResetToPendingClick={() => {
-                        updateStatusMutation.mutate({
-                          applicationId: application.id,
-                          status: "대기중",
-                        });
-                      }}
                     />
                   ))}
                 </DroppableColumn>
@@ -986,10 +906,6 @@ interface DraggableCardProps {
   answers?: any;
   introduction?: string | null;
   postSchema?: any;
-  onRejectClick: () => void;
-  onAcceptClick: () => void;
-  onInterviewClick: () => void;
-  onResetToPendingClick: () => void;
 }
 
 function DraggableCard({
@@ -1000,10 +916,6 @@ function DraggableCard({
   answers,
   introduction,
   postSchema,
-  onRejectClick,
-  onAcceptClick,
-  onInterviewClick,
-  onResetToPendingClick,
 }: DraggableCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id,
@@ -1060,54 +972,6 @@ function DraggableCard({
             {introduction}
           </p>
         )}
-
-        {/* Actions bar */}
-        <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border/40">
-          {status !== "대기중" && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onResetToPendingClick();
-              }}
-              className="text-[10px] font-bold text-amber-600 hover:bg-amber-50 px-2 py-1 rounded-md transition-colors border-0 cursor-pointer"
-            >
-              대기중으로
-            </button>
-          )}
-          {status !== "수락" && status !== "거절" && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRejectClick();
-              }}
-              className="text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded-md transition-colors border-0 cursor-pointer"
-            >
-              거절
-            </button>
-          )}
-          {status === "대기중" && postSchema && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onInterviewClick();
-              }}
-              className="text-[10px] font-bold text-purple-600 hover:bg-purple-50 px-2 py-1 rounded-md transition-colors border-0 cursor-pointer"
-            >
-              1차합격
-            </button>
-          )}
-          {(status === "대기중" || status === "1차합격") && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onAcceptClick();
-              }}
-              className="text-[10px] font-bold text-green-600 hover:bg-green-50 px-2 py-1 rounded-md transition-colors border-0 cursor-pointer"
-            >
-              수락
-            </button>
-          )}
-        </div>
       </div>
     </div>
   );
