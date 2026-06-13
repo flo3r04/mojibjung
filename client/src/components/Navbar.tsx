@@ -441,6 +441,8 @@ export default function Navbar() {
               
               {/* 드롭다운 패널 */}
               <div className="absolute top-full left-0 mt-1 hidden group-hover/menu:flex flex-col bg-card/95 backdrop-blur-md border border-border/50 shadow-xl rounded-2xl p-1.5 min-w-[150px] z-50 animate-in fade-in-50 slide-in-from-top-1 duration-150">
+                {/* Hover Bridge to bridge the physical gap */}
+                <div className="absolute -top-2 left-0 right-0 h-2 bg-transparent" />
                 <Link href="/board" className={`text-xs font-semibold py-2 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-colors text-left ${isActive("/board") ? "bg-primary/5 text-primary font-black" : "text-muted-foreground/80"}`}>
                   전체 모집
                 </Link>
@@ -466,6 +468,8 @@ export default function Navbar() {
               </button>
 
               <div className="absolute top-full left-0 mt-1 hidden group-hover/menu:flex flex-col bg-card/95 backdrop-blur-md border border-border/50 shadow-xl rounded-2xl p-1.5 min-w-[150px] z-50 animate-in fade-in-50 slide-in-from-top-1 duration-150">
+                {/* Hover Bridge to bridge the physical gap */}
+                <div className="absolute -top-2 left-0 right-0 h-2 bg-transparent" />
                 <Link href="/calendar" className={`text-xs font-semibold py-2 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-colors text-left ${isActive("/calendar") ? "bg-primary/5 text-primary font-black" : "text-muted-foreground/80"}`}>
                   마이캘린더
                 </Link>
