@@ -107,6 +107,38 @@ export default function PostForm() {
 
   const isInitialized = useRef(false);
 
+  // Draft Auto-Save: Automatically save to localStorage every 1 second when form inputs change
+  useEffect(() => {
+    if (isEdit) return;
+    const timer = setTimeout(() => {
+      const draft = { category, title, content };
+      localStorage.setItem("mojibjung_draft_form", JSON.stringify(draft));
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [category, title, content, isEdit]);
+
+  // Draft Restore: Check for saved drafts on component mount and prompt user to restore
+  useEffect(() => {
+    if (isEdit) return;
+    const saved = localStorage.getItem("mojibjung_draft_form");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (parsed.title || parsed.content) {
+          if (confirm("이전에 작성 중이던 임시 저장 글이 있습니다. 불러오시겠습니까?")) {
+            setCategory(parsed.category || "동아리");
+            setTitle(parsed.title || "");
+            setContent(parsed.content || "");
+          } else {
+            localStorage.removeItem("mojibjung_draft_form");
+          }
+        }
+      } catch (e) {
+        console.error("Failed to restore draft:", e);
+      }
+    }
+  }, [isEdit]);
+
   useEffect(() => {
     if (existingPost && !isInitialized.current) {
       const { post } = existingPost;
@@ -294,6 +326,7 @@ export default function PostForm() {
   // --- 뮤테이션 ---
   const createMutation = trpc.post.create.useMutation({
     onSuccess: data => {
+      localStorage.removeItem("mojibjung_draft_form");
       toast.success("모집 글이 등록되었습니다!");
       navigate(`/post/${data?.post.id}`);
     },

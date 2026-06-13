@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import Layout from "@/components/Layout";
@@ -14,8 +14,10 @@ import {
   BarChart3,
   List,
   Calendar,
-
+  GripVertical,
+  Kanban,
 } from "lucide-react";
+import { DndContext, useDroppable, useDraggable, useSensor, useSensors, PointerSensor, TouchSensor, DragEndEvent } from "@dnd-kit/core";
 import { Link } from "wouter";
 import {
   BarChart,
@@ -61,6 +63,7 @@ export default function PostManage() {
   const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState<"list" | "stats">("list");
+  const [viewMode, setViewMode] = useState<"list" | "kanban">("list");
   const [rejectAppId, setRejectAppId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const [interviewAppId, setInterviewAppId] = useState<number | null>(null);
@@ -88,6 +91,59 @@ export default function PostManage() {
   });
 
 
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const appLinkId = parseInt(active.id as string);
+    const targetStatus = over.id as "대기중" | "1차합격" | "수락" | "거절";
+
+    const app = appData?.find(a => a.application.id === appLinkId);
+    if (!app) return;
+
+    const currentStatus = app.application.status;
+    if (currentStatus === targetStatus) return;
+
+    if (targetStatus === "거절") {
+      setRejectAppId(appLinkId);
+      setRejectReason(app.application.rejectReason || "");
+    } else if (targetStatus === "1차합격") {
+      if (postData?.post.hasInterview === 1) {
+        setInterviewAppId(appLinkId);
+        setInterviewDetails("");
+      } else {
+        updateStatusMutation.mutate({
+          applicationId: appLinkId,
+          status: "수락",
+        });
+      }
+    } else if (targetStatus === "수락") {
+      updateStatusMutation.mutate({
+        applicationId: appLinkId,
+        status: "수락",
+      });
+    } else if (targetStatus === "대기중") {
+      updateStatusMutation.mutate({
+        applicationId: appLinkId,
+        status: "대기중",
+      });
+    }
+  };
 
   const handleRejectSubmit = () => {
     if (!rejectAppId) return;
@@ -285,6 +341,27 @@ export default function PostManage() {
           </div>
 
           {activeTab === "list" && (
+            <div className="flex justify-end mb-6 gap-2">
+              <Button
+                variant={viewMode === "list" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("list")}
+                className="font-bold gap-1.5 rounded-xl px-4"
+              >
+                <List className="w-4 h-4" /> 리스트 뷰
+              </Button>
+              <Button
+                variant={viewMode === "kanban" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setViewMode("kanban")}
+                className="font-bold gap-1.5 rounded-xl px-4"
+              >
+                <Kanban className="w-4 h-4" /> 칸반 보드
+              </Button>
+            </div>
+          )}
+
+          {activeTab === "list" && viewMode === "list" && (
             <div className="bg-card rounded-3xl border border-border shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
@@ -457,6 +534,128 @@ export default function PostManage() {
                 </table>
               </div>
             </div>
+          )}
+
+          {activeTab === "list" && viewMode === "kanban" && (
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <DroppableColumn id="대기중" title="대기중" color="#eab308">
+                  {appData?.filter(a => a.application.status === "대기중").map(({ application, applicantName }) => (
+                    <DraggableCard
+                      key={application.id}
+                      id={application.id.toString()}
+                      name={applicantName || "익명"}
+                      date={new Date(application.createdAt).toLocaleDateString("ko-KR")}
+                      status={application.status}
+                      answers={application.answers}
+                      introduction={application.introduction}
+                      postSchema={postData.post.formSchema}
+                      onRejectClick={() => {
+                        setRejectAppId(application.id);
+                        setRejectReason(application.rejectReason || "");
+                      }}
+                      onAcceptClick={() => {
+                        updateStatusMutation.mutate({
+                          applicationId: application.id,
+                          status: "수락",
+                        });
+                      }}
+                      onInterviewClick={() => {
+                        setInterviewAppId(application.id);
+                        setInterviewDetails("");
+                      }}
+                    />
+                  ))}
+                </DroppableColumn>
+
+                <DroppableColumn id="1차합격" title="1차합격" color="#8b5cf6">
+                  {appData?.filter(a => a.application.status === "1차합격").map(({ application, applicantName }) => (
+                    <DraggableCard
+                      key={application.id}
+                      id={application.id.toString()}
+                      name={applicantName || "익명"}
+                      date={new Date(application.createdAt).toLocaleDateString("ko-KR")}
+                      status={application.status}
+                      answers={application.answers}
+                      introduction={application.introduction}
+                      postSchema={postData.post.formSchema}
+                      onRejectClick={() => {
+                        setRejectAppId(application.id);
+                        setRejectReason(application.rejectReason || "");
+                      }}
+                      onAcceptClick={() => {
+                        updateStatusMutation.mutate({
+                          applicationId: application.id,
+                          status: "수락",
+                        });
+                      }}
+                      onInterviewClick={() => {
+                        setInterviewAppId(application.id);
+                        setInterviewDetails("");
+                      }}
+                    />
+                  ))}
+                </DroppableColumn>
+
+                <DroppableColumn id="수락" title="수락 (최종)" color="#22c55e">
+                  {appData?.filter(a => a.application.status === "수락").map(({ application, applicantName }) => (
+                    <DraggableCard
+                      key={application.id}
+                      id={application.id.toString()}
+                      name={applicantName || "익명"}
+                      date={new Date(application.createdAt).toLocaleDateString("ko-KR")}
+                      status={application.status}
+                      answers={application.answers}
+                      introduction={application.introduction}
+                      postSchema={postData.post.formSchema}
+                      onRejectClick={() => {
+                        setRejectAppId(application.id);
+                        setRejectReason(application.rejectReason || "");
+                      }}
+                      onAcceptClick={() => {
+                        updateStatusMutation.mutate({
+                          applicationId: application.id,
+                          status: "수락",
+                        });
+                      }}
+                      onInterviewClick={() => {
+                        setInterviewAppId(application.id);
+                        setInterviewDetails("");
+                      }}
+                    />
+                  ))}
+                </DroppableColumn>
+
+                <DroppableColumn id="거절" title="거절" color="#ef4444">
+                  {appData?.filter(a => a.application.status === "거절").map(({ application, applicantName }) => (
+                    <DraggableCard
+                      key={application.id}
+                      id={application.id.toString()}
+                      name={applicantName || "익명"}
+                      date={new Date(application.createdAt).toLocaleDateString("ko-KR")}
+                      status={application.status}
+                      answers={application.answers}
+                      introduction={application.introduction}
+                      postSchema={postData.post.formSchema}
+                      onRejectClick={() => {
+                        setRejectAppId(application.id);
+                        setRejectReason(application.rejectReason || "");
+                      }}
+                      onAcceptClick={() => {
+                        updateStatusMutation.mutate({
+                          applicationId: application.id,
+                          status: "수락",
+                        });
+                      }}
+                      onInterviewClick={() => {
+                        setInterviewAppId(application.id);
+                        setInterviewDetails("");
+                      }}
+                    />
+                  ))}
+                </DroppableColumn>
+              </div>
+            </DndContext>
           )}
 
           {activeTab === "stats" && stats && (
@@ -720,5 +919,159 @@ export default function PostManage() {
         </DialogContent>
       </Dialog>
     </Layout>
+  );
+}
+
+// ============================================================================
+// DND 칸반 보드 서브 컴포넌트들
+// ============================================================================
+
+interface DroppableColumnProps {
+  id: string;
+  title: string;
+  color: string;
+  children: React.ReactNode;
+}
+
+function DroppableColumn({ id, title, color, children }: DroppableColumnProps) {
+  const { isOver, setNodeRef } = useDroppable({ id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`bg-muted/30 rounded-3xl p-4 border transition-colors flex flex-col min-h-[450px] ${
+        isOver ? "border-primary bg-primary/[0.02] ring-1 ring-primary/20" : "border-border/60"
+      }`}
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: color }} />
+        <h4 className="font-extrabold text-sm text-foreground">{title}</h4>
+      </div>
+      <div className="flex flex-col gap-3 flex-1">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+interface DraggableCardProps {
+  id: string;
+  name: string;
+  date: string;
+  status: string;
+  answers?: any;
+  introduction?: string | null;
+  postSchema?: any;
+  onRejectClick: () => void;
+  onAcceptClick: () => void;
+  onInterviewClick: () => void;
+}
+
+function DraggableCard({
+  id,
+  name,
+  date,
+  status,
+  answers,
+  introduction,
+  postSchema,
+  onRejectClick,
+  onAcceptClick,
+  onInterviewClick,
+}: DraggableCardProps) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id,
+  });
+
+  const style = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+      }
+    : undefined;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-card border border-border/80 rounded-2xl p-4 shadow-xs select-none transition-shadow ${
+        isDragging ? "opacity-50 cursor-grabbing shadow-lg" : "hover:shadow-md cursor-grab active:cursor-grabbing"
+      }`}
+    >
+      {/* Drag Handle Area */}
+      <div {...listeners} {...attributes} className="flex items-center justify-between pb-2 border-b border-border/40 mb-3 text-muted-foreground/60 hover:text-muted-foreground">
+        <span className="text-[10px] font-bold tracking-wider">{date}</span>
+        <GripVertical className="w-3.5 h-3.5" />
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <h5 className="font-black text-sm text-foreground truncate">{name}</h5>
+          <Badge className={`text-[9px] px-1.5 py-0.2 font-bold shrink-0 ${
+            status === "수락" ? "bg-green-500 hover:bg-green-600 text-white" :
+            status === "거절" ? "bg-red-500 hover:bg-red-600 text-white" :
+            status === "1차합격" ? "bg-purple-500 hover:bg-purple-600 text-white" :
+            "bg-amber-500 hover:bg-amber-600 text-white"
+          }`}>
+            {status}
+          </Badge>
+        </div>
+
+        {/* Preview details */}
+        {answers ? (
+          <div className="space-y-1.5 max-h-[80px] overflow-y-auto pr-1">
+            {Object.entries(answers as Record<string, string>).slice(0, 1).map(([qId, ans]) => {
+              const q = postSchema?.find((x: any) => x.id === qId);
+              return (
+                <div key={qId} className="bg-muted/40 p-1.5 rounded-lg text-[10.5px]">
+                  <p className="text-[9px] text-muted-foreground font-extrabold truncate">Q. {q?.question || "질문"}</p>
+                  <p className="font-medium truncate">{ans}</p>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+            {introduction}
+          </p>
+        )}
+
+        {/* Actions bar */}
+        <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border/40">
+          {status !== "수락" && status !== "거절" && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRejectClick();
+              }}
+              className="text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded-md transition-colors border-0 cursor-pointer"
+            >
+              거절
+            </button>
+          )}
+          {status === "대기중" && postSchema && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onInterviewClick();
+              }}
+              className="text-[10px] font-bold text-purple-600 hover:bg-purple-50 px-2 py-1 rounded-md transition-colors border-0 cursor-pointer"
+            >
+              1차합격
+            </button>
+          )}
+          {(status === "대기중" || status === "1차합격") && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onAcceptClick();
+              }}
+              className="text-[10px] font-bold text-green-600 hover:bg-green-50 px-2 py-1 rounded-md transition-colors border-0 cursor-pointer"
+            >
+              수락
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
