@@ -564,6 +564,12 @@ export default function PostManage() {
                         setInterviewAppId(application.id);
                         setInterviewDetails("");
                       }}
+                      onResetToPendingClick={() => {
+                        updateStatusMutation.mutate({
+                          applicationId: application.id,
+                          status: "대기중",
+                        });
+                      }}
                     />
                   ))}
                 </DroppableColumn>
@@ -592,6 +598,12 @@ export default function PostManage() {
                       onInterviewClick={() => {
                         setInterviewAppId(application.id);
                         setInterviewDetails("");
+                      }}
+                      onResetToPendingClick={() => {
+                        updateStatusMutation.mutate({
+                          applicationId: application.id,
+                          status: "대기중",
+                        });
                       }}
                     />
                   ))}
@@ -622,6 +634,12 @@ export default function PostManage() {
                         setInterviewAppId(application.id);
                         setInterviewDetails("");
                       }}
+                      onResetToPendingClick={() => {
+                        updateStatusMutation.mutate({
+                          applicationId: application.id,
+                          status: "대기중",
+                        });
+                      }}
                     />
                   ))}
                 </DroppableColumn>
@@ -650,6 +668,12 @@ export default function PostManage() {
                       onInterviewClick={() => {
                         setInterviewAppId(application.id);
                         setInterviewDetails("");
+                      }}
+                      onResetToPendingClick={() => {
+                        updateStatusMutation.mutate({
+                          applicationId: application.id,
+                          status: "대기중",
+                        });
                       }}
                     />
                   ))}
@@ -965,6 +989,7 @@ interface DraggableCardProps {
   onRejectClick: () => void;
   onAcceptClick: () => void;
   onInterviewClick: () => void;
+  onResetToPendingClick: () => void;
 }
 
 function DraggableCard({
@@ -978,6 +1003,7 @@ function DraggableCard({
   onRejectClick,
   onAcceptClick,
   onInterviewClick,
+  onResetToPendingClick,
 }: DraggableCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id,
@@ -1037,6 +1063,17 @@ function DraggableCard({
 
         {/* Actions bar */}
         <div className="flex items-center justify-end gap-1.5 pt-2 border-t border-border/40">
+          {status !== "대기중" && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onResetToPendingClick();
+              }}
+              className="text-[10px] font-bold text-amber-600 hover:bg-amber-50 px-2 py-1 rounded-md transition-colors border-0 cursor-pointer"
+            >
+              대기중으로
+            </button>
+          )}
           {status !== "수락" && status !== "거절" && (
             <button
               onClick={(e) => {

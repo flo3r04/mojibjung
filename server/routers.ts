@@ -833,7 +833,7 @@ export const appRouter = router({
       .input(
         z.object({
           applicationId: z.number(),
-          status: z.enum(["1차합격", "수락", "거절"]),
+          status: z.enum(["대기중", "1차합격", "수락", "거절"]),
           rejectReason: z.string().optional(),
           interviewDetails: z.string().optional(),
         })
