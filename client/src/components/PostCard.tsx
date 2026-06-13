@@ -77,7 +77,7 @@ export default function PostCard({
               category === "학회" ? "bg-violet-50 text-violet-600 border-violet-100" :
               "bg-rose-50 text-rose-600 border-rose-100"
             }`}>
-              {category}
+              {category === "스터디" ? "프로젝트" : category}
             </span>
             {deadlineDate && (
               <span className="text-[10px] text-muted-foreground font-medium mt-1">

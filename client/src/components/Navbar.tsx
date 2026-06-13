@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link, useLocation } from "wouter";
-import { BookOpen, Users, GraduationCap, PenSquare, LogOut, User, LayoutDashboard, ShieldAlert, MessageSquare, Search, UserX, AlertTriangle, ShieldCheck, Calendar, Menu, Sun, Moon, ListTodo, Bell, Globe, MapPin } from "lucide-react";
+import { BookOpen, Users, GraduationCap, PenSquare, LogOut, User, LayoutDashboard, ShieldAlert, MessageSquare, Search, UserX, AlertTriangle, ShieldCheck, Calendar, Menu, Sun, Moon, ListTodo, Bell, Globe, MapPin, ChevronDown } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -428,47 +428,57 @@ export default function Navbar() {
 
         {/* Bottom Row: Sub Navigation Items & Horizontal Search Form */}
         <div className="flex items-center justify-between h-11 border-t border-border/40 select-none">
-          {/* Horizontal scrollable links */}
-          <nav className="flex items-center gap-5 md:gap-7 overflow-x-auto scrollbar-hide py-1 flex-nowrap shrink-0 max-w-[70%] sm:max-w-[78%]">
-            <Link 
-              href="/board" 
-              className={`text-[12.5px] sm:text-xs no-underline whitespace-nowrap transition-colors py-1 ${isActive("/board") ? "text-primary font-black border-b-2 border-primary" : "text-muted-foreground/80 hover:text-foreground font-bold"}`}
-            >
-              전체 모집
-            </Link>
-            <Link 
-              href="/board?category=동아리" 
-              className={`text-[12.5px] sm:text-xs no-underline whitespace-nowrap transition-colors py-1 ${isActive("/board?category=동아리") ? "text-primary font-black border-b-2 border-primary" : "text-muted-foreground/80 hover:text-foreground font-bold"}`}
-            >
-              동아리 모집
-            </Link>
-            <Link 
-              href="/board?category=학회" 
-              className={`text-[12.5px] sm:text-xs no-underline whitespace-nowrap transition-colors py-1 ${isActive("/board?category=학회") ? "text-primary font-black border-b-2 border-primary" : "text-muted-foreground/80 hover:text-foreground font-bold"}`}
-            >
-              학회 모집
-            </Link>
-            <Link 
-              href="/board?category=스터디" 
-              className={`text-[12.5px] sm:text-xs no-underline whitespace-nowrap transition-colors py-1 ${isActive("/board?category=스터디") ? "text-primary font-black border-b-2 border-primary" : "text-muted-foreground/80 hover:text-foreground font-bold"}`}
-            >
-              스터디 모집
-            </Link>
-            <Link 
-              href="/calendar" 
-              className={`text-[12.5px] sm:text-xs no-underline whitespace-nowrap transition-colors py-1 ${isActive("/calendar") ? "text-primary font-black border-b-2 border-primary" : "text-muted-foreground/80 hover:text-foreground font-bold"}`}
-            >
-              캘린더
-            </Link>
-            <Link 
-              href="/todo" 
-              className={`text-[12.5px] sm:text-xs no-underline whitespace-nowrap transition-colors py-1 ${isActive("/todo") ? "text-primary font-black border-b-2 border-primary" : "text-muted-foreground/80 hover:text-foreground font-bold"}`}
-            >
-              마이투두
-            </Link>
+          {/* Horizontal navigation dropdowns */}
+          <nav className="flex items-center gap-6 md:gap-8 py-1 shrink-0">
+            {/* 1. 모집 대메뉴 (드롭다운) */}
+            <div className="relative group/menu">
+              <button className={`flex items-center gap-1 text-[13px] sm:text-sm font-bold no-underline whitespace-nowrap transition-colors py-1 cursor-pointer hover:text-primary bg-transparent border-0 outline-hidden ${
+                location.startsWith("/board") ? "text-primary font-black" : "text-muted-foreground/80"
+              }`}>
+                <span>모집</span>
+                <ChevronDown className="w-3.5 h-3.5 opacity-60 group-hover/menu:rotate-180 transition-transform duration-200" />
+              </button>
+              
+              {/* 드롭다운 패널 */}
+              <div className="absolute top-full left-0 mt-1 hidden group-hover/menu:flex flex-col bg-card/95 backdrop-blur-md border border-border/50 shadow-xl rounded-2xl p-1.5 min-w-[150px] z-50 animate-in fade-in-50 slide-in-from-top-1 duration-150">
+                <Link href="/board" className={`text-xs font-semibold py-2 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-colors text-left ${isActive("/board") ? "bg-primary/5 text-primary font-black" : "text-muted-foreground/80"}`}>
+                  전체 모집
+                </Link>
+                <Link href="/board?category=동아리" className={`text-xs font-semibold py-2 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-colors text-left ${isActive("/board?category=동아리") ? "bg-primary/5 text-primary font-black" : "text-muted-foreground/80"}`}>
+                  동아리 모집
+                </Link>
+                <Link href="/board?category=학회" className={`text-xs font-semibold py-2 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-colors text-left ${isActive("/board?category=학회") ? "bg-primary/5 text-primary font-black" : "text-muted-foreground/80"}`}>
+                  학회 모집
+                </Link>
+                <Link href="/board?category=스터디" className={`text-xs font-semibold py-2 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-colors text-left ${isActive("/board?category=스터디") ? "bg-primary/5 text-primary font-black" : "text-muted-foreground/80"}`}>
+                  프로젝트 모집
+                </Link>
+              </div>
+            </div>
+
+            {/* 2. 마이시리즈 대메뉴 (드롭다운) */}
+            <div className="relative group/menu">
+              <button className={`flex items-center gap-1 text-[13px] sm:text-sm font-bold no-underline whitespace-nowrap transition-colors py-1 cursor-pointer hover:text-primary bg-transparent border-0 outline-hidden ${
+                ["/calendar", "/todo"].includes(location) ? "text-primary font-black" : "text-muted-foreground/80"
+              }`}>
+                <span>마이시리즈</span>
+                <ChevronDown className="w-3.5 h-3.5 opacity-60 group-hover/menu:rotate-180 transition-transform duration-200" />
+              </button>
+
+              <div className="absolute top-full left-0 mt-1 hidden group-hover/menu:flex flex-col bg-card/95 backdrop-blur-md border border-border/50 shadow-xl rounded-2xl p-1.5 min-w-[150px] z-50 animate-in fade-in-50 slide-in-from-top-1 duration-150">
+                <Link href="/calendar" className={`text-xs font-semibold py-2 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-colors text-left ${isActive("/calendar") ? "bg-primary/5 text-primary font-black" : "text-muted-foreground/80"}`}>
+                  마이캘린더
+                </Link>
+                <Link href="/todo" className={`text-xs font-semibold py-2 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-colors text-left ${isActive("/todo") ? "bg-primary/5 text-primary font-black" : "text-muted-foreground/80"}`}>
+                  마이투두
+                </Link>
+              </div>
+            </div>
+
+            {/* 3. 그룹 소통 단독 링크 */}
             <Link 
               href="/groups" 
-              className={`text-[12.5px] sm:text-xs no-underline whitespace-nowrap transition-colors py-1 ${isActive("/groups") ? "text-primary font-black border-b-2 border-primary" : "text-muted-foreground/80 hover:text-foreground font-bold"}`}
+              className={`text-[13px] sm:text-sm no-underline whitespace-nowrap transition-colors py-1 hover:text-primary ${isActive("/groups") ? "text-primary font-black" : "text-muted-foreground/80 font-bold"}`}
             >
               그룹 소통
             </Link>

@@ -860,7 +860,7 @@ export default function PostDetail() {
                         모집 구분
                       </p>
                       <p className="font-black text-foreground text-base">
-                        {post.category}
+                        {post.category === "스터디" ? "프로젝트" : post.category}
                       </p>
                     </div>
                     <div>

@@ -17,7 +17,7 @@ const CATEGORIES: { key: Category | "전체"; label: string }[] = [
   { key: "전체", label: "전체" },
   { key: "동아리", label: "동아리" },
   { key: "학회", label: "학회" },
-  { key: "스터디", label: "스터디" },
+  { key: "스터디", label: "프로젝트" },
 ];
 
 export default function Board() {
@@ -86,7 +86,7 @@ export default function Board() {
           <div>
             <h1 className="text-3xl font-black text-foreground">모집 게시판</h1>
             <p className="text-muted-foreground font-light mt-1">
-              동아리, 학회, 스터디 모집 정보를 한눈에 확인하세요
+              동아리, 학회, 프로젝트 모집 정보를 한눈에 확인하세요
             </p>
           </div>
           {isAuthenticated && (

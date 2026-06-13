@@ -447,7 +447,7 @@ export default function PostForm() {
                         : "bg-card text-muted-foreground border-border hover:bg-muted"
                     }`}
                   >
-                    {cat}
+                    {cat === "스터디" ? "프로젝트" : cat}
                   </button>
                 ))}
               </div>
@@ -704,7 +704,7 @@ export default function PostForm() {
                     onClick={() => applyTemplate(category)}
                     className="mt-2 h-auto p-0"
                   >
-                    {category} 기본 템플릿 불러오기
+                    {category === "스터디" ? "프로젝트" : category} 기본 템플릿 불러오기
                   </Button>
                 </div>
               ) : (
