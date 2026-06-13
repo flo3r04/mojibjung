@@ -61,6 +61,87 @@ export default function GroupHub() {
   const [newPollTimeEnd, setNewPollTimeEnd] = useState("22:00");
   const [dateInputVal, setDateInputVal] = useState("");
   const [copiedKeyGroupId, setCopiedKeyGroupId] = useState<number | null>(null);
+  const tabsContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = tabsContainerRef.current;
+    if (!el) return;
+
+    // 1. Mouse Wheel Scroll (Vertical -> Horizontal)
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      el.scrollBy({
+        left: e.deltaY * 1.2,
+        behavior: "auto",
+      });
+    };
+
+    // 2. Mouse Click & Drag to Scroll
+    let isDown = false;
+    let startX = 0;
+    let scrollLeftStart = 0;
+    let hasMoved = false;
+
+    const handleMouseDown = (e: MouseEvent) => {
+      isDown = true;
+      el.style.cursor = "grabbing";
+      el.style.userSelect = "none";
+      startX = e.pageX - el.offsetLeft;
+      scrollLeftStart = el.scrollLeft;
+      hasMoved = false;
+    };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - el.offsetLeft;
+      const walk = (x - startX) * 1.5; // Scroll speed multiplier
+      if (Math.abs(walk) > 5) {
+        hasMoved = true;
+      }
+      el.scrollLeft = scrollLeftStart - walk;
+    };
+
+    const handleMouseUp = () => {
+      isDown = false;
+      el.style.cursor = "pointer";
+      el.style.removeProperty("user-select");
+    };
+
+    const handleMouseLeave = () => {
+      isDown = false;
+      el.style.cursor = "pointer";
+      el.style.removeProperty("user-select");
+    };
+
+    // Prevent button clicks if the user was dragging
+    const handleClickCapture = (e: MouseEvent) => {
+      if (hasMoved) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    };
+
+    el.addEventListener("wheel", handleWheel, { passive: false });
+    el.addEventListener("mousedown", handleMouseDown);
+    el.addEventListener("mousemove", handleMouseMove);
+    el.addEventListener("mouseup", handleMouseUp);
+    el.addEventListener("mouseleave", handleMouseLeave);
+    el.addEventListener("click", handleClickCapture, true); // Use capture phase
+
+    // Set initial cursor style to indicate it's draggable
+    el.style.cursor = "pointer";
+
+    return () => {
+      el.removeEventListener("wheel", handleWheel);
+      el.removeEventListener("mousedown", handleMouseDown);
+      el.removeEventListener("mousemove", handleMouseMove);
+      el.removeEventListener("mouseup", handleMouseUp);
+      el.removeEventListener("mouseleave", handleMouseLeave);
+      el.removeEventListener("click", handleClickCapture, true);
+    };
+  }, [selectedGroupId]);
 
   // Group join access key
   const [joinAccessKey, setJoinAccessKey] = useState("");
@@ -445,33 +526,33 @@ export default function GroupHub() {
                   </div>
 
                   {/* Dashboard Tab Buttons */}
-                  <div className="flex border-b border-border bg-muted/10 px-4 overflow-x-auto scrollbar-hide flex-nowrap gap-1">
+                  <div ref={tabsContainerRef} className="flex border-b border-border bg-card px-6 overflow-x-auto scrollbar-hide flex-nowrap gap-1">
                     <button
                       onClick={() => setActiveTab("chat")}
-                      className={`flex items-center gap-2 px-4 py-3.5 text-sm font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "chat" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`flex items-center gap-1.5 px-4 py-3 text-[13.5px] font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "chat" ? "border-primary text-primary" : "border-transparent text-muted-foreground/80 hover:text-foreground"}`}
                     >
-                      <MessageSquare className="w-4.5 h-4.5" />
+                      <MessageSquare className="w-4 h-4" />
                       소통 창구 (대화/공지)
                     </button>
                     <button
                       onClick={() => setActiveTab("calendar")}
-                      className={`flex items-center gap-2 px-4 py-3.5 text-sm font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "calendar" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`flex items-center gap-1.5 px-4 py-3 text-[13.5px] font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "calendar" ? "border-primary text-primary" : "border-transparent text-muted-foreground/80 hover:text-foreground"}`}
                     >
-                      <Calendar className="w-4.5 h-4.5" />
+                      <Calendar className="w-4 h-4" />
                       그룹 일정 관리
                     </button>
                     <button
                       onClick={() => setActiveTab("files")}
-                      className={`flex items-center gap-2 px-4 py-3.5 text-sm font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "files" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`flex items-center gap-1.5 px-4 py-3 text-[13.5px] font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "files" ? "border-primary text-primary" : "border-transparent text-muted-foreground/80 hover:text-foreground"}`}
                     >
-                      <FolderOpen className="w-4.5 h-4.5" />
+                      <FolderOpen className="w-4 h-4" />
                       자료실 (파일 공유)
                     </button>
                     <button
                       onClick={() => setActiveTab("studies")}
-                      className={`flex items-center gap-2 px-4 py-3.5 text-sm font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "studies" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`flex items-center gap-1.5 px-4 py-3 text-[13.5px] font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "studies" ? "border-primary text-primary" : "border-transparent text-muted-foreground/80 hover:text-foreground"}`}
                     >
-                      <ListTodo className="w-4.5 h-4.5" />
+                      <ListTodo className="w-4 h-4" />
                       소모임 / 스터디
                     </button>
                     <button
@@ -479,17 +560,17 @@ export default function GroupHub() {
                         setActiveTab("timepolls");
                         setSelectedTimePollId(null);
                       }}
-                      className={`flex items-center gap-2 px-4 py-3.5 text-sm font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "timepolls" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                      className={`flex items-center gap-1.5 px-4 py-3 text-[13.5px] font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "timepolls" ? "border-primary text-primary" : "border-transparent text-muted-foreground/80 hover:text-foreground"}`}
                     >
-                      <Clock className="w-4.5 h-4.5" />
+                      <Clock className="w-4 h-4" />
                       시간 조율 투표
                     </button>
                     {(selectedGroup.isLeader || user?.role === "admin") && (
                       <button
                         onClick={() => setActiveTab("members")}
-                        className={`flex items-center gap-2 px-4 py-3.5 text-sm font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "members" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                        className={`flex items-center gap-1.5 px-4 py-3 text-[13.5px] font-bold border-b-2 transition-all whitespace-nowrap shrink-0 ${activeTab === "members" ? "border-primary text-primary" : "border-transparent text-muted-foreground/80 hover:text-foreground"}`}
                       >
-                        <Settings className="w-4.5 h-4.5" />
+                        <Settings className="w-4 h-4" />
                         지위 및 멤버 관리
                       </button>
                     )}

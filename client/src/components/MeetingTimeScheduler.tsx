@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
-import { Calendar as CalendarIcon, Clock, Users, Check, X, AlertCircle, Trash } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Users, Check, X, AlertCircle, Trash, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 interface MeetingTimeSchedulerProps {
