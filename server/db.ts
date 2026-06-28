@@ -447,6 +447,19 @@ export async function getDb() {
           } catch (eventError) {
             console.warn("[Database] 학사일정 자동 시딩 중 예외 발생 (테이블이 없을 수 있음):", eventError);
           }
+
+          // 5-g. group_roles 테이블에 신규 권한 컬럼 추가 (시간 조율 및 소모임 생성)
+          try {
+            await _db!.execute(sql`
+              ALTER TABLE "group_roles" ADD COLUMN IF NOT EXISTS "canManageTimeVote" integer DEFAULT 0 NOT NULL;
+            `);
+            await _db!.execute(sql`
+              ALTER TABLE "group_roles" ADD COLUMN IF NOT EXISTS "canCreateStudy" integer DEFAULT 0 NOT NULL;
+            `);
+            console.log("[Database] group_roles 신규 권한 컬럼 DDL 싱크 완료");
+          } catch (rolesErr) {
+            console.error("[Database] group_roles 신규 권한 컬럼 DDL 싱크 실패:", rolesErr);
+          }
         } catch (ddlError) {
           console.error("[Database] DDL 싱크 예외 발생:", ddlError);
         }
