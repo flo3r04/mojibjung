@@ -139,19 +139,19 @@ export default function TodoPage() {
 
   return (
     <Layout className="bg-background/95">
-      <div className="container max-w-3xl py-12 px-4 font-sans">
+      <div className="container max-w-4xl py-12 px-4 font-sans">
         
         {/* 헤더 섹션 */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-10">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-400/20 to-primary/20 flex items-center justify-center border border-emerald-500/20 shadow-sm">
-              <ListTodo className="w-7 h-7 text-emerald-500" />
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-400/20 to-primary/20 flex items-center justify-center border border-emerald-500/20 shadow-sm shrink-0">
+              <ListTodo className="w-8 h-8 text-emerald-500" />
             </div>
             <div>
-              <h1 className="text-3xl font-black text-foreground tracking-tight flex items-center gap-2">
+              <h1 className="text-4xl font-black text-foreground tracking-tight flex items-center gap-2">
                 마이 투두
               </h1>
-              <p className="text-sm text-muted-foreground font-medium mt-0.5">
+              <p className="text-base text-muted-foreground font-medium mt-1">
                 날짜별로 할 일을 기록하고 목표 달성률을 직관적으로 확인하세요.
               </p>
             </div>
@@ -161,28 +161,28 @@ export default function TodoPage() {
             variant="outline"
             size="sm"
             onClick={handleGoToday}
-            className="h-9 px-4 rounded-xl border border-border/60 hover:bg-muted/40 font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs self-start md:self-center"
+            className="h-11 px-5 rounded-2xl border border-border/60 hover:bg-muted/40 font-bold text-sm flex items-center gap-1.5 cursor-pointer shadow-xs self-start md:self-center"
           >
             오늘로 이동
           </Button>
         </div>
 
         {/* 메인 투두 카드 */}
-        <div className="bg-card/65 backdrop-blur-md rounded-3xl border border-border p-6 shadow-md relative overflow-hidden space-y-6">
+        <div className="bg-card/65 backdrop-blur-md rounded-[32px] border border-border p-8 md:p-10 shadow-md relative overflow-hidden space-y-8">
           <div className="absolute top-0 inset-x-0 h-[3px] bg-gradient-to-r from-emerald-400 via-primary/30 to-indigo-400" />
 
           {/* 주간 날짜 선택 바 */}
-          <div className="flex items-center justify-between gap-4 border-b border-border/40 pb-4">
+          <div className="flex items-center justify-between gap-6 border-b border-border/40 pb-6">
             <Button
               variant="ghost"
               size="sm"
               onClick={handlePrevWeek}
-              className="h-8 w-8 rounded-lg p-0 hover:bg-muted text-muted-foreground transition-all cursor-pointer"
+              className="h-10 w-10 rounded-xl p-0 hover:bg-muted text-muted-foreground transition-all cursor-pointer shrink-0"
             >
-              <ChevronLeft className="w-4 h-4" />
+              <ChevronLeft className="w-5 h-5" />
             </Button>
 
-            <div className="flex-1 grid grid-cols-7 gap-1">
+            <div className="flex-1 grid grid-cols-7 gap-2">
               {weekDays.map((day) => {
                 const isSelected = isSameDay(day, selectedDate);
                 const isToday = isSameDay(day, new Date());
@@ -194,17 +194,17 @@ export default function TodoPage() {
                     key={day.toISOString()}
                     onClick={() => setSelectedDate(day)}
                     className={cn(
-                      "flex flex-col items-center justify-center py-2.5 rounded-xl border transition-all cursor-pointer select-none",
+                      "flex flex-col items-center justify-center py-4 rounded-2xl border transition-all cursor-pointer select-none",
                       isSelected
                         ? "bg-primary border-primary text-primary-foreground shadow-sm scale-105"
                         : "bg-muted/20 border-transparent hover:bg-muted/50 text-muted-foreground hover:text-foreground",
                       isToday && !isSelected && "border-primary/30 text-primary font-black bg-primary/5"
                     )}
                   >
-                    <span className="text-[10px] font-bold uppercase tracking-wider mb-0.5 opacity-80">
+                    <span className="text-xs font-bold uppercase tracking-wider mb-1 opacity-85">
                       {dayLabel}
                     </span>
-                    <span className="text-sm font-black tracking-tight">{dayNum}</span>
+                    <span className="text-base md:text-lg font-black tracking-tight">{dayNum}</span>
                   </button>
                 );
               })}
@@ -214,26 +214,26 @@ export default function TodoPage() {
               variant="ghost"
               size="sm"
               onClick={handleNextWeek}
-              className="h-8 w-8 rounded-lg p-0 hover:bg-muted text-muted-foreground transition-all cursor-pointer"
+              className="h-10 w-10 rounded-xl p-0 hover:bg-muted text-muted-foreground transition-all cursor-pointer shrink-0"
             >
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-5 h-5" />
             </Button>
           </div>
 
           {/* 현재 선택 날짜 요약 & 진행률 바 */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <h2 className="text-lg font-black text-foreground flex items-center gap-2">
-                <CalendarDays className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-black text-foreground flex items-center gap-2.5">
+                <CalendarDays className="w-6 h-6 text-primary" />
                 {format(selectedDate, "yyyy년 M월 d일 (E요일)", { locale: ko })} 할 일 목록
               </h2>
-              <Badge variant="outline" className="font-bold border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 self-start sm:self-center">
+              <Badge variant="outline" className="font-bold text-sm px-3 py-1 border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 self-start sm:self-center">
                 달성률 {progressPercent}%
               </Badge>
             </div>
 
             {/* 진행률 바 */}
-            <div className="w-full h-2 bg-muted rounded-full overflow-hidden border border-border/40">
+            <div className="w-full h-3 bg-muted rounded-full overflow-hidden border border-border/40">
               <motion.div
                 initial={{ width: 0 }}
                 animate={{ width: `${progressPercent}%` }}
@@ -244,20 +244,20 @@ export default function TodoPage() {
           </div>
 
           {/* 투두 등록 폼 */}
-          <form onSubmit={handleAddSubmit} className="flex gap-2">
+          <form onSubmit={handleAddSubmit} className="flex gap-3">
             <Input
               placeholder="여기에 새로운 할 일을 등록해보세요..."
               value={todoContent}
               onChange={(e) => setTodoContent(e.target.value)}
-              className="h-11 rounded-xl bg-card border-border px-4 font-semibold text-sm"
+              className="h-14 rounded-2xl bg-card border-border px-5 font-bold text-base shadow-inner focus-visible:ring-primary"
               maxLength={200}
             />
             <Button
               type="submit"
-              className="h-11 px-4 rounded-xl font-bold bg-primary text-primary-foreground shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer shrink-0"
+              className="h-14 w-14 rounded-2xl font-bold bg-primary text-primary-foreground shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer shrink-0 flex items-center justify-center"
               disabled={createTodoMutation.isPending}
             >
-              <Plus className="w-5 h-5" />
+              <Plus className="w-6 h-6" />
             </Button>
           </form>
 
@@ -269,14 +269,14 @@ export default function TodoPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="text-center py-16 text-muted-foreground/60 border border-dashed border-border/60 rounded-2xl bg-muted/10"
+                  className="text-center py-20 text-muted-foreground/60 border border-dashed border-border/60 rounded-3xl bg-muted/10"
                 >
-                  <Info className="w-10 h-10 mx-auto mb-3 text-muted-foreground/35" />
-                  <p className="text-sm font-semibold">등록된 할 일이 없습니다.</p>
-                  <p className="text-xs font-medium text-muted-foreground/80 mt-1">오늘 계획한 일을 등록하고 하루를 체계적으로 시작해보세요!</p>
+                  <Info className="w-12 h-12 mx-auto mb-4 text-muted-foreground/35" />
+                  <p className="text-base font-bold">등록된 할 일이 없습니다.</p>
+                  <p className="text-sm font-medium text-muted-foreground/80 mt-2.5">오늘 계획한 일을 등록하고 하루를 체계적으로 시작해보세요!</p>
                 </motion.div>
               ) : (
-                <div className="space-y-2.5">
+                <div className="space-y-3">
                   {todos.map((todo) => (
                     <motion.div
                       layout
@@ -284,18 +284,18 @@ export default function TodoPage() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       key={todo.id}
-                      className="group flex items-center justify-between p-3.5 rounded-xl bg-muted/20 border border-border/40 hover:bg-muted/40 transition-all text-sm"
+                      className="group flex items-center justify-between p-5 rounded-2xl bg-muted/20 border border-border/40 hover:bg-muted/40 transition-all text-base"
                     >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className="flex items-center gap-4.5 min-w-0 flex-1">
                         <button
                           type="button"
                           onClick={() => toggleTodoMutation.mutate({ id: todo.id })}
                           className="text-muted-foreground hover:text-primary transition-all shrink-0 cursor-pointer"
                         >
                           {todo.isCompleted === 1 ? (
-                            <CheckCircle className="w-5 h-5 text-emerald-500 fill-emerald-500/10" />
+                            <CheckCircle className="w-6 h-6 text-emerald-500 fill-emerald-500/10" />
                           ) : (
-                            <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/50 hover:border-primary" />
+                            <div className="w-6 h-6 rounded-full border-2 border-muted-foreground/50 hover:border-primary shrink-0" />
                           )}
                         </button>
                         <span
@@ -320,7 +320,7 @@ export default function TodoPage() {
                         }}
                         className="opacity-0 group-hover:opacity-100 hover:text-destructive text-muted-foreground p-1.5 rounded-lg hover:bg-destructive/10 transition-all shrink-0 cursor-pointer"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-5 h-5" />
                       </button>
                     </motion.div>
                   ))}
