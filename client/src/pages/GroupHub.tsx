@@ -151,6 +151,8 @@ export default function GroupHub() {
   const [newRoleSchedule, setNewRoleSchedule] = useState(false);
   const [newRoleNotice, setNewRoleNotice] = useState(false);
   const [newRolePrivate, setNewRolePrivate] = useState(false);
+  const [newRoleTimeVote, setNewRoleTimeVote] = useState(false);
+  const [newRoleCreateStudy, setNewRoleCreateStudy] = useState(false);
   const [roleModalOpen, setRoleModalOpen] = useState(false);
 
   // New calendar event state
@@ -249,6 +251,8 @@ export default function GroupHub() {
       setNewRoleSchedule(false);
       setNewRoleNotice(false);
       setNewRolePrivate(false);
+      setNewRoleTimeVote(false);
+      setNewRoleCreateStudy(false);
       setRoleModalOpen(false);
       toast.success("새 지위가 성공적으로 등록되었습니다.");
     },
@@ -348,6 +352,8 @@ export default function GroupHub() {
       canManageSchedule: newRoleSchedule ? 1 : 0,
       canManageNotice: newRoleNotice ? 1 : 0,
       canViewPrivateEvent: newRolePrivate ? 1 : 0,
+      canManageTimeVote: newRoleTimeVote ? 1 : 0,
+      canCreateStudy: newRoleCreateStudy ? 1 : 0,
     });
   };
 
@@ -844,6 +850,14 @@ export default function GroupHub() {
                                       {role.canViewPrivateEvent === 1 ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3 opacity-40" />}
                                       비밀일정열람 {role.canViewPrivateEvent === 1 ? "허용" : "차단"}
                                     </Badge>
+                                    <Badge variant={role.canManageTimeVote === 1 ? "default" : "secondary"} className="text-[10px] font-bold py-0.5 rounded flex items-center gap-1 select-none">
+                                      {role.canManageTimeVote === 1 ? <ShieldCheck className="w-3 h-3" /> : <Clock className="w-3 h-3 opacity-40" />}
+                                      시간조율 {role.canManageTimeVote === 1 ? "허용" : "차단"}
+                                    </Badge>
+                                    <Badge variant={role.canCreateStudy === 1 ? "default" : "secondary"} className="text-[10px] font-bold py-0.5 rounded flex items-center gap-1 select-none">
+                                      {role.canCreateStudy === 1 ? <ShieldCheck className="w-3 h-3" /> : <Clock className="w-3 h-3 opacity-40" />}
+                                      소모임생성 {role.canCreateStudy === 1 ? "허용" : "차단"}
+                                    </Badge>
                                   </div>
                                 </div>
                               ))
@@ -951,6 +965,7 @@ export default function GroupHub() {
                         <GroupStudiesSection
                           groupId={selectedGroupId ?? 0}
                           isLeader={selectedGroup?.isLeader ?? false}
+                          permissions={permissions}
                           user={user}
                         />
                       </div>
@@ -961,6 +976,8 @@ export default function GroupHub() {
                         <GroupTimePollsSection
                           groupId={selectedGroupId}
                           isLeader={selectedGroup?.isLeader ?? false}
+                          permissions={permissions}
+                          user={user}
                         />
                       </div>
                     )}
@@ -1061,6 +1078,22 @@ export default function GroupHub() {
                   <p className="text-[11px] font-semibold text-muted-foreground mt-0.5">대외비용 비밀 개인 일정을 함께 관리하고 확인할 수 있습니다.</p>
                 </div>
                 <Switch checked={newRolePrivate} onCheckedChange={setNewRolePrivate} className="shrink-0" />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-bold text-foreground">시간 조율 투표 권한</span>
+                  <p className="text-[11px] font-semibold text-muted-foreground mt-0.5">그룹 내 모임 시간 조율 투표를 생성하고 관리할 수 있습니다.</p>
+                </div>
+                <Switch checked={newRoleTimeVote} onCheckedChange={setNewRoleTimeVote} className="shrink-0" />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm font-bold text-foreground">소모임 생성 권한</span>
+                  <p className="text-[11px] font-semibold text-muted-foreground mt-0.5">그룹 내 하위 소모임 및 스터디 그룹을 개설할 수 있습니다.</p>
+                </div>
+                <Switch checked={newRoleCreateStudy} onCheckedChange={setNewRoleCreateStudy} className="shrink-0" />
               </div>
             </div>
           </div>
@@ -1910,15 +1943,17 @@ function GroupFilesSection({
 }
 
 // ============================================================================
-// [신규] 하위 스터디 및 소모임 관리 섹션 컴포넌트
+// [신규] 하위 스터디 및 소모임 관리 섹션 컴모임 컴포넌트
 // ============================================================================
 function GroupStudiesSection({
   groupId,
   isLeader,
+  permissions,
   user,
 }: {
   groupId: number;
   isLeader: boolean;
+  permissions?: any;
   user: any;
 }) {
   const utils = trpc.useUtils();
@@ -2000,7 +2035,7 @@ function GroupStudiesSection({
           </h3>
           <p className="text-xs text-muted-foreground font-semibold mt-1">동아리 내 개설된 연구회, 스터디 그룹을 모니터링하고 가입할 수 있습니다.</p>
         </div>
-        {(isLeader || user?.role === "admin") && (
+        {(isLeader || permissions?.canCreateStudy || user?.role === "admin") && (
           <Button
             type="button"
             onClick={() => setCreateModalOpen(true)}
@@ -2020,7 +2055,7 @@ function GroupStudiesSection({
         <div className="py-20 text-center border-2 border-dashed border-border/60 rounded-2xl bg-muted/5">
           <ListTodo className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
           <p className="text-xs font-black text-muted-foreground">개설된 스터디가 없습니다.</p>
-          {(isLeader || user?.role === "admin") ? (
+          {(isLeader || permissions?.canCreateStudy || user?.role === "admin") ? (
             <p className="text-[10px] text-muted-foreground/80 mt-1">상단의 스터디 개설 버튼을 통해 스터디 그룹을 신설해보세요!</p>
           ) : (
             <p className="text-[10px] text-muted-foreground/80 mt-1">그룹 리더에게 하위 소모임 개설을 건의해보세요.</p>
@@ -2721,10 +2756,14 @@ function GroupTimePollsSection({
   groupId,
   studyId,
   isLeader,
+  permissions,
+  user,
 }: {
   groupId?: number | null;
   studyId?: number | null;
   isLeader: boolean;
+  permissions?: any;
+  user?: any;
 }) {
   const utils = trpc.useUtils();
   const [selectedPollId, setSelectedPollId] = useState<number | null>(null);
@@ -2810,7 +2849,7 @@ function GroupTimePollsSection({
             부원들의 일정을 취합하여 가장 약속을 잡기 좋은 최적의 교집합 시간을 찾아냅니다.
           </p>
         </div>
-        {isLeader && (
+        {(isLeader || permissions?.canManageTimeVote || user?.role === "admin") && (
           <Button onClick={() => setModalOpen(true)} className="rounded-xl font-black shadow-md bg-primary text-white h-9 text-xs">
             <Plus className="w-4 h-4 mr-1" />
             새 투표 만들기

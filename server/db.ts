@@ -2211,6 +2211,8 @@ export async function checkGroupPermissions(userId: number, groupId: number) {
     canManageSchedule: false,
     canManageNotice: false,
     canViewPrivateEvent: false,
+    canManageTimeVote: false,
+    canCreateStudy: false,
     roleName: null as string | null,
   };
 
@@ -2226,6 +2228,8 @@ export async function checkGroupPermissions(userId: number, groupId: number) {
     permissions.canManageSchedule = true;
     permissions.canManageNotice = true;
     permissions.canViewPrivateEvent = true;
+    permissions.canManageTimeVote = true;
+    permissions.canCreateStudy = true;
     permissions.roleName = "리더";
     return permissions;
   }
@@ -2256,6 +2260,8 @@ export async function checkGroupPermissions(userId: number, groupId: number) {
     permissions.canManageSchedule = role[0].canManageSchedule === 1;
     permissions.canManageNotice = role[0].canManageNotice === 1;
     permissions.canViewPrivateEvent = role[0].canViewPrivateEvent === 1;
+    permissions.canManageTimeVote = role[0].canManageTimeVote === 1;
+    permissions.canCreateStudy = role[0].canCreateStudy === 1;
   }
 
   return permissions;

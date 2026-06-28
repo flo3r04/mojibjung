@@ -1666,6 +1666,8 @@ export const appRouter = router({
           canManageSchedule: z.number().default(0),
           canManageNotice: z.number().default(0),
           canViewPrivateEvent: z.number().default(0),
+          canManageTimeVote: z.number().default(0),
+          canCreateStudy: z.number().default(0),
         })
       )
       .mutation(async ({ ctx, input }) => {
@@ -1695,6 +1697,8 @@ export const appRouter = router({
             canManageSchedule: z.number().optional(),
             canManageNotice: z.number().optional(),
             canViewPrivateEvent: z.number().optional(),
+            canManageTimeVote: z.number().optional(),
+            canCreateStudy: z.number().optional(),
           }),
         })
       )
@@ -2030,10 +2034,10 @@ export const appRouter = router({
       )
       .mutation(async ({ ctx, input }) => {
         const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
-        if (!perm.isLeader && ctx.user.role !== "admin") {
+        if (!perm.isLeader && !perm.canCreateStudy && ctx.user.role !== "admin") {
           throw new TRPCError({
             code: "FORBIDDEN",
-            message: "그룹 리더만 하위 스터디를 생성할 수 있습니다.",
+            message: "그룹 리더 또는 소모임 생성 권한이 있는 멤버만 하위 스터디를 생성할 수 있습니다.",
           });
         }
 
@@ -2324,9 +2328,9 @@ export const appRouter = router({
           }
         } else if (input.groupId) {
           const perm = await checkGroupPermissions(ctx.user.id, input.groupId);
-          const isLeaderOrAdmin = perm.isLeader || ctx.user.role === "admin";
+          const isLeaderOrAdmin = perm.isLeader || perm.canManageTimeVote || ctx.user.role === "admin";
           if (!isLeaderOrAdmin) {
-            throw new TRPCError({ code: "FORBIDDEN", message: "그룹 리더만 시간 조율 투표를 생성할 수 있습니다." });
+            throw new TRPCError({ code: "FORBIDDEN", message: "그룹 리더 또는 시간 조율 투표 권한이 있는 멤버만 시간 조율 투표를 생성할 수 있습니다." });
           }
         } else {
           throw new TRPCError({ code: "BAD_REQUEST", message: "그룹 ID 또는 스터디 ID가 필요합니다." });
@@ -2592,7 +2596,7 @@ export const appRouter = router({
             if (study && study.leaderId === ctx.user.id) isAuthorized = true;
           } else if (poll.groupId) {
             const perm = await checkGroupPermissions(ctx.user.id, poll.groupId);
-            if (perm.isLeader) isAuthorized = true;
+            if (perm.isLeader || perm.canManageTimeVote) isAuthorized = true;
           }
         }
 
@@ -2632,7 +2636,7 @@ export const appRouter = router({
             if (study && study.leaderId === ctx.user.id) isAuthorized = true;
           } else if (poll.groupId) {
             const perm = await checkGroupPermissions(ctx.user.id, poll.groupId);
-            if (perm.isLeader) isAuthorized = true;
+            if (perm.isLeader || perm.canManageTimeVote) isAuthorized = true;
           }
         }
 

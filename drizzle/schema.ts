@@ -425,6 +425,8 @@ export const groupRoles = pgTable("group_roles", {
   canManageSchedule: integer("canManageSchedule").default(0).notNull(), // 0: 불가능, 1: 가능
   canManageNotice: integer("canManageNotice").default(0).notNull(), // 0: 불가능, 1: 가능
   canViewPrivateEvent: integer("canViewPrivateEvent").default(0).notNull(), // 0: 불가능, 1: 가능
+  canManageTimeVote: integer("canManageTimeVote").default(0).notNull(), // 0: 불가능, 1: 가능
+  canCreateStudy: integer("canCreateStudy").default(0).notNull(), // 0: 불가능, 1: 가능
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 
