@@ -2665,6 +2665,289 @@ export const appRouter = router({
       return markAllNotificationsAsRead(ctx.user.id);
     }),
   }),
+
+  // [마이스케쥴 관련 API]
+  schedule: router({
+    // 시간표 목록 조회
+    listTimetables: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      const { timetables } = await import("../drizzle/schema");
+
+      return db
+        .select()
+        .from(timetables)
+        .where(eq(timetables.userId, ctx.user.id))
+        .orderBy(desc(timetables.createdAt));
+    }),
+
+    // 새 시간표 생성
+    createTimetable: protectedProcedure
+      .input(
+        z.object({
+          name: z.string().min(1, "시간표 이름을 입력해주세요.").max(100),
+          semester: z.string().min(1, "학기를 선택해주세요.").max(20),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { timetables } = await import("../drizzle/schema");
+
+        // 사용자의 기존 시간표 개수 체크
+        const existing = await db
+          .select()
+          .from(timetables)
+          .where(eq(timetables.userId, ctx.user.id));
+
+        // 첫 시간표라면 메인으로 설정
+        const isMain = existing.length === 0 ? 1 : 0;
+
+        const [created] = await db
+          .insert(timetables)
+          .values({
+            userId: ctx.user.id,
+            name: input.name,
+            semester: input.semester,
+            isMain,
+          })
+          .returning();
+
+        return created;
+      }),
+
+    // 시간표 삭제 (종속된 과목도 함께 삭제)
+    deleteTimetable: protectedProcedure
+      .input(z.object({ timetableId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { timetables, timetableItems } = await import("../drizzle/schema");
+
+        // 소유권 확인
+        const [timetable] = await db
+          .select()
+          .from(timetables)
+          .where(and(eq(timetables.id, input.timetableId), eq(timetables.userId, ctx.user.id)))
+          .limit(1);
+
+        if (!timetable) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "시간표를 찾을 수 없습니다." });
+        }
+
+        // 종속된 아이템 선 삭제 후 시간표 삭제
+        await db.delete(timetableItems).where(eq(timetableItems.timetableId, input.timetableId));
+        await db.delete(timetables).where(eq(timetables.id, input.timetableId));
+
+        // 만약 메인 시간표가 삭제되었다면, 남은 시간표 중 가장 최근 것 하나를 메인으로 지정
+        if (timetable.isMain === 1) {
+          const remaining = await db
+            .select()
+            .from(timetables)
+            .where(eq(timetables.userId, ctx.user.id))
+            .orderBy(desc(timetables.createdAt))
+            .limit(1);
+
+          if (remaining.length > 0) {
+            await db
+              .update(timetables)
+              .set({ isMain: 1 })
+              .where(eq(timetables.id, remaining[0].id));
+          }
+        }
+
+        return { success: true };
+      }),
+
+    // 시간표 상세 및 포함 과목 리스트 조회
+    getTimetableDetail: protectedProcedure
+      .input(z.object({ timetableId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { timetables, timetableItems } = await import("../drizzle/schema");
+
+        // 소유권 확인
+        const [timetable] = await db
+          .select()
+          .from(timetables)
+          .where(and(eq(timetables.id, input.timetableId), eq(timetables.userId, ctx.user.id)))
+          .limit(1);
+
+        if (!timetable) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "시간표를 찾을 수 없습니다." });
+        }
+
+        const items = await db
+          .select()
+          .from(timetableItems)
+          .where(eq(timetableItems.timetableId, input.timetableId));
+
+        return {
+          timetable,
+          items,
+        };
+      }),
+
+    // 과목 추가
+    addTimetableItem: protectedProcedure
+      .input(
+        z.object({
+          timetableId: z.number(),
+          subjectName: z.string().min(1, "과목명을 입력해주세요.").max(100),
+          professor: z.string().max(100).optional(),
+          room: z.string().max(100).optional(),
+          color: z.string().max(20),
+          dayOfWeek: z.number().min(1).max(7), // 1(월) ~ 5(금) (토/일 가능성 열어둠)
+          startTime: z.string().length(5), // "HH:MM"
+          endTime: z.string().length(5), // "HH:MM"
+          memo: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { timetables, timetableItems } = await import("../drizzle/schema");
+
+        // 시간표 소유권 확인
+        const [timetable] = await db
+          .select()
+          .from(timetables)
+          .where(and(eq(timetables.id, input.timetableId), eq(timetables.userId, ctx.user.id)))
+          .limit(1);
+
+        if (!timetable) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "시간표를 찾을 수 없습니다." });
+        }
+
+        const [created] = await db
+          .insert(timetableItems)
+          .values({
+            timetableId: input.timetableId,
+            subjectName: input.subjectName,
+            professor: input.professor ?? null,
+            room: input.room ?? null,
+            color: input.color,
+            dayOfWeek: input.dayOfWeek,
+            startTime: input.startTime,
+            endTime: input.endTime,
+            memo: input.memo ?? null,
+          })
+          .returning();
+
+        return created;
+      }),
+
+    // 과목 수정
+    updateTimetableItem: protectedProcedure
+      .input(
+        z.object({
+          itemId: z.number(),
+          subjectName: z.string().min(1, "과목명을 입력해주세요.").max(100),
+          professor: z.string().max(100).optional(),
+          room: z.string().max(100).optional(),
+          color: z.string().max(20),
+          dayOfWeek: z.number().min(1).max(7),
+          startTime: z.string().length(5),
+          endTime: z.string().length(5),
+          memo: z.string().optional(),
+        })
+      )
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { timetables, timetableItems } = await import("../drizzle/schema");
+
+        // 과목 존재 및 시간표 소유권 확인
+        const [item] = await db
+          .select()
+          .from(timetableItems)
+          .innerJoin(timetables, eq(timetableItems.timetableId, timetables.id))
+          .where(and(eq(timetableItems.id, input.itemId), eq(timetables.userId, ctx.user.id)))
+          .limit(1);
+
+        if (!item) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "과목을 찾을 수 없습니다." });
+        }
+
+        const [updated] = await db
+          .update(timetableItems)
+          .set({
+            subjectName: input.subjectName,
+            professor: input.professor ?? null,
+            room: input.room ?? null,
+            color: input.color,
+            dayOfWeek: input.dayOfWeek,
+            startTime: input.startTime,
+            endTime: input.endTime,
+            memo: input.memo ?? null,
+            updatedAt: new Date(),
+          })
+          .where(eq(timetableItems.id, input.itemId))
+          .returning();
+
+        return updated;
+      }),
+
+    // 과목 삭제
+    deleteTimetableItem: protectedProcedure
+      .input(z.object({ itemId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { timetables, timetableItems } = await import("../drizzle/schema");
+
+        // 과목 존재 및 시간표 소유권 확인
+        const [item] = await db
+          .select()
+          .from(timetableItems)
+          .innerJoin(timetables, eq(timetableItems.timetableId, timetables.id))
+          .where(and(eq(timetableItems.id, input.itemId), eq(timetables.userId, ctx.user.id)))
+          .limit(1);
+
+        if (!item) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "과목을 찾을 수 없습니다." });
+        }
+
+        await db.delete(timetableItems).where(eq(timetableItems.id, input.itemId));
+
+        return { success: true };
+      }),
+
+    // 기본 시간표로 설정
+    setMainTimetable: protectedProcedure
+      .input(z.object({ timetableId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const { timetables } = await import("../drizzle/schema");
+
+        // 소유권 확인
+        const [timetable] = await db
+          .select()
+          .from(timetables)
+          .where(and(eq(timetables.id, input.timetableId), eq(timetables.userId, ctx.user.id)))
+          .limit(1);
+
+        if (!timetable) {
+          throw new TRPCError({ code: "NOT_FOUND", message: "시간표를 찾을 수 없습니다." });
+        }
+
+        // 해당 유저의 모든 시간표 main 0 처리 후 지정 시간표 main 1 처리
+        await db
+          .update(timetables)
+          .set({ isMain: 0 })
+          .where(eq(timetables.userId, ctx.user.id));
+
+        await db
+          .update(timetables)
+          .set({ isMain: 1 })
+          .where(eq(timetables.id, input.timetableId));
+
+        return { success: true };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
+

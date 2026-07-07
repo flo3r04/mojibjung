@@ -80,6 +80,12 @@ import {
   InsertGroupStudyMember,
   groupStudyMinutes,
   InsertGroupStudyMinute,
+  timetables,
+  Timetable,
+  InsertTimetable,
+  timetableItems,
+  TimetableItem,
+  InsertTimetableItem,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -348,6 +354,48 @@ export async function getDb() {
         } catch (pollsErr) {
           console.error("[Database] 시간표 조율 관련 테이블 DDL 싱크 실패:", pollsErr);
         }
+
+        // 5-g. timetables 및 timetable_items 테이블 생성 및 인덱스 추가 (마이스케쥴 기능)
+        try {
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "timetables" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "userId" integer NOT NULL,
+              "name" varchar(100) NOT NULL,
+              "semester" varchar(20) NOT NULL,
+              "isMain" integer DEFAULT 0 NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL,
+              "updatedAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+          await _db!.execute(sql`
+            CREATE INDEX IF NOT EXISTS "timetables_userId_idx" ON "timetables" ("userId");
+          `);
+
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "timetable_items" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "timetableId" integer NOT NULL,
+              "subjectName" varchar(100) NOT NULL,
+              "professor" varchar(100),
+              "room" varchar(100),
+              "color" varchar(20) DEFAULT '#4f46e5' NOT NULL,
+              "dayOfWeek" integer NOT NULL,
+              "startTime" varchar(5) NOT NULL,
+              "endTime" varchar(5) NOT NULL,
+              "memo" text,
+              "createdAt" timestamp DEFAULT now() NOT NULL,
+              "updatedAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+          await _db!.execute(sql`
+            CREATE INDEX IF NOT EXISTS "timetableItems_timetableId_idx" ON "timetable_items" ("timetableId");
+          `);
+          console.log("[Database] 마이스케쥴 관련 테이블 DDL 싱크 완료");
+        } catch (timetableErr) {
+          console.error("[Database] 마이스케쥴 관련 테이블 DDL 싱크 실패:", timetableErr);
+        }
+
 
         // 6. 학사일정 및 공휴일 자동 시딩
           try {

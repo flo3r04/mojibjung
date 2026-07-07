@@ -625,3 +625,53 @@ export const meetingTimeResponses = pgTable("meeting_time_responses", {
 export type MeetingTimeResponse = typeof meetingTimeResponses.$inferSelect;
 export type InsertMeetingTimeResponse = typeof meetingTimeResponses.$inferInsert;
 
+
+// ============================================================================
+// 시간표 메타데이터 (Timetables)
+// ============================================================================
+export const timetables = pgTable("timetables", {
+  id: serial("id").primaryKey(),
+  userId: integer("userId").notNull(),
+  name: varchar("name", { length: 100 }).notNull(),
+  semester: varchar("semester", { length: 20 }).notNull(), // 예: "2026-1", "2026-2"
+  isMain: integer("isMain").default(0).notNull(), // 0 또는 1 (대표 시간표 지정용)
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt")
+    .defaultNow()
+    .$onUpdateFn(() => new Date())
+    .notNull(),
+}, (table) => [
+  index("timetables_userId_idx").on(table.userId)
+]);
+
+export type Timetable = typeof timetables.$inferSelect;
+export type InsertTimetable = typeof timetables.$inferInsert;
+
+
+// ============================================================================
+// 시간표 개별 과목 (Timetable Items)
+// ============================================================================
+export const timetableItems = pgTable("timetable_items", {
+  id: serial("id").primaryKey(),
+  timetableId: integer("timetableId").notNull(),
+  subjectName: varchar("subjectName", { length: 100 }).notNull(),
+  professor: varchar("professor", { length: 100 }),
+  room: varchar("room", { length: 100 }),
+  color: varchar("color", { length: 20 }).default("#4f46e5").notNull(), // 테마 컬러
+  dayOfWeek: integer("dayOfWeek").notNull(), // 1(월) ~ 5(금)
+  startTime: varchar("startTime", { length: 5 }).notNull(), // "HH:MM" (예: "09:00")
+  endTime: varchar("endTime", { length: 5 }).notNull(), // "HH:MM" (예: "10:30")
+  memo: text("memo"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt")
+    .defaultNow()
+    .$onUpdateFn(() => new Date())
+    .notNull(),
+}, (table) => [
+  index("timetableItems_timetableId_idx").on(table.timetableId)
+]);
+
+export type TimetableItem = typeof timetableItems.$inferSelect;
+export type InsertTimetableItem = typeof timetableItems.$inferInsert;
+
+

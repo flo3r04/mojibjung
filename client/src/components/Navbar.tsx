@@ -319,6 +319,14 @@ export default function Navbar() {
                         </Link>
                       </DropdownMenuItem>
 
+                      {/* 마이스케쥴 링크 */}
+                      <DropdownMenuItem asChild>
+                        <Link href="/schedule" className="flex items-center gap-2 cursor-pointer rounded-xl py-2 px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
+                          <GraduationCap className="w-4 h-4" />
+                          마이스케쥴
+                        </Link>
+                      </DropdownMenuItem>
+
                       {/* 그룹 소통/일정 링크 */}
                       <DropdownMenuItem asChild>
                         <Link href="/groups" className="flex items-center gap-2 cursor-pointer rounded-xl py-2 px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
@@ -461,7 +469,7 @@ export default function Navbar() {
             {/* 2. 마이시리즈 대메뉴 (드롭다운) */}
             <div className="relative group/menu">
               <button className={`flex items-center gap-1 text-[13px] sm:text-sm font-bold no-underline whitespace-nowrap transition-colors py-1 cursor-pointer hover:text-primary bg-transparent border-0 outline-hidden ${
-                ["/calendar", "/todo"].includes(location) ? "text-primary font-black" : "text-muted-foreground/80"
+                ["/calendar", "/todo", "/schedule"].includes(location) ? "text-primary font-black" : "text-muted-foreground/80"
               }`}>
                 <span>마이시리즈</span>
                 <ChevronDown className="w-3.5 h-3.5 opacity-60 group-hover/menu:rotate-180 transition-transform duration-200" />
@@ -475,6 +483,9 @@ export default function Navbar() {
                 </Link>
                 <Link href="/todo" className={`text-xs font-semibold py-2 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-colors text-left ${isActive("/todo") ? "bg-primary/5 text-primary font-black" : "text-muted-foreground/80"}`}>
                   마이투두
+                </Link>
+                <Link href="/schedule" className={`text-xs font-semibold py-2 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-colors text-left ${isActive("/schedule") ? "bg-primary/5 text-primary font-black" : "text-muted-foreground/80"}`}>
+                  마이스케쥴
                 </Link>
               </div>
             </div>

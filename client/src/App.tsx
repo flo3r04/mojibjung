@@ -18,6 +18,7 @@ import UserProfile from "./pages/UserProfile";
 import MyPage from "./pages/MyPage";
 import CalendarPage from "./pages/CalendarPage";
 import TodoPage from "./pages/TodoPage";
+import SchedulePage from "./pages/SchedulePage";
 import Admin from "./pages/Admin";
 import Messages from "./pages/Messages";
 import BlockManage from "./pages/BlockManage";
@@ -92,6 +93,7 @@ function Router() {
       <Route path="/mypage" component={MyPage} />
       <Route path="/calendar" component={CalendarPage} />
       <Route path="/todo" component={TodoPage} />
+      <Route path="/schedule" component={SchedulePage} />
       <Route path="/groups" component={GroupHub} />
       <Route path="/admin" component={Admin} />
       <Route path="/messages" component={Messages} />
