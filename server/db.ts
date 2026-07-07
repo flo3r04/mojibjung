@@ -355,7 +355,7 @@ export async function getDb() {
           console.error("[Database] 시간표 조율 관련 테이블 DDL 싱크 실패:", pollsErr);
         }
 
-        // 5-g. timetables 및 timetable_items 테이블 생성 및 인덱스 추가 (마이스케쥴 기능)
+        // 5-g. timetables 및 timetable_items 테이블 생성 및 인덱스 추가 (마이스케줄 기능)
         try {
           await _db!.execute(sql`
             CREATE TABLE IF NOT EXISTS "timetables" (
@@ -391,9 +391,9 @@ export async function getDb() {
           await _db!.execute(sql`
             CREATE INDEX IF NOT EXISTS "timetableItems_timetableId_idx" ON "timetable_items" ("timetableId");
           `);
-          console.log("[Database] 마이스케쥴 관련 테이블 DDL 싱크 완료");
+          console.log("[Database] 마이스케줄 관련 테이블 DDL 싱크 완료");
         } catch (timetableErr) {
-          console.error("[Database] 마이스케쥴 관련 테이블 DDL 싱크 실패:", timetableErr);
+          console.error("[Database] 마이스케줄 관련 테이블 DDL 싱크 실패:", timetableErr);
         }
 
 

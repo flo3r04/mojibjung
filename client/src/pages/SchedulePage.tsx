@@ -501,7 +501,7 @@ export default function SchedulePage() {
             </div>
             <h1 className="text-2xl font-black text-foreground mb-4">로그인이 필요한 service입니다</h1>
             <p className="text-muted-foreground font-medium mb-8 text-sm leading-relaxed">
-              마이 스케쥴 서비스는 한국외대 학생 전용 기능입니다.<br />
+              마이 스케줄 서비스는 한국외대 학생 전용 기능입니다.<br />
               로그인하시면 과목 스케줄 구성, 충돌 방지 및 캘린더/투두와 즉시 연동을 활용할 수 있습니다.
             </p>
             <Button
@@ -533,8 +533,7 @@ export default function SchedulePage() {
             </div>
             <div>
               <h1 className="text-4xl font-black text-foreground tracking-tight flex items-center gap-2">
-                마이 스케쥴
-                <Sparkles className="w-5 h-5 text-amber-500 fill-amber-500 animate-pulse" />
+                마이 스케줄
               </h1>
               <p className="text-base text-muted-foreground font-medium mt-1">
                 학교 시간표를 간편하게 조립하고 캘린더/할 일 스레드와 연합하여 빈틈없이 계획하세요.

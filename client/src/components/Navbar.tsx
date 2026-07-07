@@ -319,11 +319,11 @@ export default function Navbar() {
                         </Link>
                       </DropdownMenuItem>
 
-                      {/* 마이스케쥴 링크 */}
+                      {/* 마이스케줄 링크 */}
                       <DropdownMenuItem asChild>
                         <Link href="/schedule" className="flex items-center gap-2 cursor-pointer rounded-xl py-2 px-2.5 text-xs font-semibold text-muted-foreground hover:text-foreground">
                           <GraduationCap className="w-4 h-4" />
-                          마이스케쥴
+                          마이스케줄
                         </Link>
                       </DropdownMenuItem>
 
@@ -485,7 +485,7 @@ export default function Navbar() {
                   마이투두
                 </Link>
                 <Link href="/schedule" className={`text-xs font-semibold py-2 px-3 rounded-xl hover:bg-primary/5 hover:text-primary transition-colors text-left ${isActive("/schedule") ? "bg-primary/5 text-primary font-black" : "text-muted-foreground/80"}`}>
-                  마이스케쥴
+                  마이스케줄
                 </Link>
               </div>
             </div>

@@ -2667,7 +2667,7 @@ export const appRouter = router({
     }),
   }),
 
-  // [마이스케쥴 관련 API]
+  // [마이스케줄 관련 API]
   schedule: router({
     // 시간표 목록 조회
     listTimetables: protectedProcedure.query(async ({ ctx }) => {
