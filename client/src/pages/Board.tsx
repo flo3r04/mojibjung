@@ -5,7 +5,7 @@ import Layout from "@/components/Layout";
 import PostCard from "@/components/PostCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, SlidersHorizontal, PenSquare } from "lucide-react";
+import { Search, SlidersHorizontal, PenSquare, Bookmark } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Link } from "wouter";
 
@@ -39,6 +39,7 @@ export default function Board() {
   const [searchInput, setSearchInput] = useState("");
   const [sort, setSort] = useState<SortType>("latest");
   const [statusFilter, setStatusFilter] = useState<StatusType | "전체">("모집중");
+  const [bookmarkedOnly, setBookmarkedOnly] = useState(false);
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -71,6 +72,7 @@ export default function Board() {
     status: statusFilter === "전체" ? undefined : statusFilter,
     sort,
     limit: 24,
+    bookmarkedOnly: bookmarkedOnly || undefined,
   });
 
   const handleSearch = (e: React.FormEvent) => {
@@ -135,14 +137,31 @@ export default function Board() {
               </Button>
             </form>
 
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
+              {/* Bookmark Toggle (Only for authenticated users) */}
+              {isAuthenticated && (
+                <button
+                  type="button"
+                  onClick={() => setBookmarkedOnly(!bookmarkedOnly)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                    bookmarkedOnly
+                      ? "bg-amber-500/10 text-amber-600 border-amber-500/30 hover:bg-amber-500/15"
+                      : "bg-muted text-muted-foreground border-transparent hover:text-foreground hover:bg-secondary"
+                  }`}
+                >
+                  <Bookmark className={`w-3.5 h-3.5 ${bookmarkedOnly ? "fill-amber-500 text-amber-500" : ""}`} />
+                  저장한 글
+                </button>
+              )}
+
               {/* Status Filter */}
               <div className="flex gap-1 bg-muted rounded-lg p-1">
                 {(["모집중", "전체", "마감"] as const).map((s) => (
                   <button
                     key={s}
+                    type="button"
                     onClick={() => setStatusFilter(s)}
-                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                    className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                       statusFilter === s
                         ? "bg-card text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
@@ -156,8 +175,9 @@ export default function Board() {
               {/* Sort */}
               <div className="flex gap-1 bg-muted rounded-lg p-1">
                 <button
+                  type="button"
                   onClick={() => setSort("latest")}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                     sort === "latest"
                       ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
@@ -166,8 +186,9 @@ export default function Board() {
                   최신순
                 </button>
                 <button
+                  type="button"
                   onClick={() => setSort("deadline")}
-                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
+                  className={`px-3 py-1 rounded-md text-xs font-semibold transition-all cursor-pointer ${
                     sort === "deadline"
                       ? "bg-card text-foreground shadow-sm"
                       : "text-muted-foreground hover:text-foreground"

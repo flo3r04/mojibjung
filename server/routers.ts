@@ -590,6 +590,7 @@ export const appRouter = router({
           endDate: z.string().optional(),
           department: z.string().optional(),
           sortBy: z.enum(["views", "recommended"]).optional(),
+          bookmarkedOnly: z.boolean().optional(),
         })
       )
       .query(async ({ ctx, input }) => {

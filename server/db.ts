@@ -790,6 +790,7 @@ export async function listPosts(opts: {
   department?: string;
   sortBy?: "views" | "recommended";
   userId?: number;
+  bookmarkedOnly?: boolean;
 }) {
   const db = await getDb();
   if (!db) return [];
@@ -858,16 +859,26 @@ export async function listPosts(opts: {
       );
     }
 
-    // 마감임박 정렬 시 진짜 마감이 임박한 글(24시간 이내)만 보기
+    // 마감임박 정렬 시 마감 시간이 현재 시간 이후인 모든 활성 글 보기 (24시간 제한 해제)
     if (opts.sort === "deadline") {
       const now = new Date();
-      const tomorrow = new Date();
-      tomorrow.setHours(tomorrow.getHours() + 24);
       conditions.push(
         and(
           isNotNull(posts.deadline),
-          gte(posts.deadline, now),
-          lt(posts.deadline, tomorrow)
+          gte(posts.deadline, now)
+        )
+      );
+    }
+
+    // 북마크 필터링 조건 추가
+    if (opts.bookmarkedOnly && opts.userId) {
+      conditions.push(
+        inArray(
+          posts.id,
+          db
+            .select({ postId: bookmarks.postId })
+            .from(bookmarks)
+            .where(eq(bookmarks.userId, opts.userId))
         )
       );
     }

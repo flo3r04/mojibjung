@@ -1665,6 +1665,8 @@ function GroupFilesSection({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileBase64, setFileBase64] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: files = [], isLoading } = trpc.group.listFiles.useQuery({ groupId });
 
@@ -1703,13 +1705,9 @@ function GroupFilesSection({
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processFile = (file: File) => {
     if (file.size > 10 * 1024 * 1024) {
       toast.error("최대 10MB 크기의 파일만 업로드할 수 있습니다.");
-      e.target.value = "";
       return;
     }
 
@@ -1723,6 +1721,31 @@ function GroupFilesSection({
       setFileBase64(reader.result as string);
     };
     reader.readAsDataURL(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    if (isUploading) return;
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (isUploading) return;
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    processFile(file);
   };
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
@@ -1879,12 +1902,39 @@ function GroupFilesSection({
           <form onSubmit={handleUploadSubmit} className="space-y-4 my-3 text-xs">
             <div className="space-y-1.5">
               <label className="text-[11px] font-black text-muted-foreground">파일 선택</label>
-              <Input
+              <input
                 type="file"
+                ref={fileInputRef}
                 onChange={handleFileChange}
-                className="rounded-xl font-bold h-10 border-border bg-muted/20 focus-visible:ring-primary cursor-pointer pt-2 px-3 file:mr-2 file:py-0 file:px-2 file:rounded-md file:border-0 file:text-[10px] file:font-black file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                required
+                className="hidden"
+                id="group-file-dropzone-input"
               />
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-all flex flex-col items-center justify-center gap-2 select-none min-h-[120px] ${
+                  isDragOver
+                    ? "border-primary bg-primary/5 text-primary scale-[0.99]"
+                    : "border-border/80 bg-muted/10 hover:bg-muted/20 text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <UploadCloud className={`w-8 h-8 transition-transform ${isDragOver ? "scale-110 text-primary animate-pulse" : "text-muted-foreground/60"}`} />
+                {selectedFile ? (
+                  <div className="text-center">
+                    <p className="font-bold text-xs text-foreground line-clamp-1 px-4">{selectedFile.name}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 font-semibold">
+                      {formatBytes(selectedFile.size)} · 드래그하거나 클릭하여 변경
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="font-bold text-xs">파일을 여기에 드래그하거나 클릭하세요</p>
+                    <p className="text-[10px] text-muted-foreground/80 mt-0.5 font-medium">최대 10MB 크기의 이미지, PDF, ZIP 등</p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {selectedFile && (

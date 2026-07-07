@@ -15,12 +15,15 @@ import {
   ListTodo,
   Info,
   CalendarDays,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { format, addDays, startOfWeek, isSameDay } from "date-fns";
 import { ko } from "date-fns/locale";
 import { motion, AnimatePresence } from "framer-motion";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export default function TodoPage() {
   const { isAuthenticated } = useAuth();
@@ -157,14 +160,42 @@ export default function TodoPage() {
             </div>
           </div>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleGoToday}
-            className="h-11 px-5 rounded-2xl border border-border/60 hover:bg-muted/40 font-bold text-sm flex items-center gap-1.5 cursor-pointer shadow-xs self-start md:self-center"
-          >
-            오늘로 이동
-          </Button>
+          <div className="flex items-center gap-2 self-start md:self-center">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-11 px-4 rounded-2xl border border-border/60 hover:bg-muted/40 font-bold text-sm flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <CalendarIcon className="w-4 h-4 text-muted-foreground" />
+                  날짜 선택
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0 rounded-2xl border border-border bg-card shadow-lg" align="end">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => {
+                    if (date) {
+                      setSelectedDate(date);
+                      setWeekPivotDate(date);
+                    }
+                  }}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGoToday}
+              className="h-11 px-5 rounded-2xl border border-border/60 hover:bg-muted/40 font-bold text-sm flex items-center gap-1.5 cursor-pointer shadow-xs"
+            >
+              오늘로 이동
+            </Button>
+          </div>
         </div>
 
         {/* 메인 투두 카드 */}
