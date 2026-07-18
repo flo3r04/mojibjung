@@ -107,9 +107,187 @@ export async function getDb() {
       });
       _db = drizzle(queryClient);
 
-      // [보안 인증용 emailVerifications 및 신규 고도화 캘린더 기능 테이블 강제 자동 싱크]
-      // Render 환경 등에서 마이그레이션 툴이 꼬였을 때를 대비한 수동 DDL 동기화 레이어
+      // [모집중 핵심 테이블 및 수동 DDL 동기화 레이어]
+      // Render 환경 등에서 데이터베이스가 새로 구성되었을 때 모든 테이블 자동 생성
       (async () => {
+        try {
+          // 0-a. departments
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "departments" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "name" varchar(100) NOT NULL UNIQUE,
+              "college" varchar(100),
+              "campus" varchar(20) DEFAULT '글로벌' NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+
+          // 0-b. users
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "users" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "openId" varchar(64) NOT NULL UNIQUE,
+              "name" text,
+              "email" varchar(320),
+              "loginMethod" varchar(64),
+              "role" varchar(20) DEFAULT 'user' NOT NULL,
+              "avatarUrl" text,
+              "status" varchar(20) DEFAULT 'pending' NOT NULL,
+              "realName" varchar(50),
+              "studentId" varchar(10),
+              "admissionYear" smallint,
+              "departmentId" integer,
+              "verifiedEmail" varchar(320),
+              "createdAt" timestamp DEFAULT now() NOT NULL,
+              "updatedAt" timestamp DEFAULT now() NOT NULL,
+              "lastSignedIn" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+
+          // 0-c. profiles
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "profiles" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "userId" integer NOT NULL UNIQUE,
+              "department" varchar(100),
+              "grade" varchar(20),
+              "bio" text,
+              "keywords" text,
+              "createdAt" timestamp DEFAULT now() NOT NULL,
+              "updatedAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+
+          // 0-d. posts
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "posts" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "authorId" integer NOT NULL,
+              "groupId" integer,
+              "category" varchar(50) NOT NULL,
+              "title" varchar(200) NOT NULL,
+              "content" text NOT NULL,
+              "capacity" integer DEFAULT 10 NOT NULL,
+              "deadline" timestamp,
+              "keywords" text,
+              "formSchema" jsonb,
+              "imageUrl" text,
+              "hasInterview" integer DEFAULT 0 NOT NULL,
+              "meetingType" varchar(50) DEFAULT '미정',
+              "status" varchar(50) DEFAULT '모집중' NOT NULL,
+              "viewCount" integer DEFAULT 0 NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL,
+              "updatedAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+
+          // 0-e. comments
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "comments" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "postId" integer NOT NULL,
+              "authorId" integer NOT NULL,
+              "content" text NOT NULL,
+              "parentId" integer,
+              "createdAt" timestamp DEFAULT now() NOT NULL,
+              "updatedAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+
+          // 0-f. likes
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "likes" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "userId" integer NOT NULL,
+              "postId" integer NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+
+          // 0-g. bookmarks
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "bookmarks" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "userId" integer NOT NULL,
+              "postId" integer NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+
+          // 0-h. applications
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "applications" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "postId" integer NOT NULL,
+              "applicantId" integer NOT NULL,
+              "status" varchar(50) DEFAULT '대기중' NOT NULL,
+              "introduction" text,
+              "answers" jsonb,
+              "interviewDetails" text,
+              "rejectReason" text,
+              "createdAt" timestamp DEFAULT now() NOT NULL,
+              "updatedAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+
+          // 0-i. messages
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "messages" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "senderId" integer NOT NULL,
+              "receiverId" integer NOT NULL,
+              "postId" integer,
+              "content" text NOT NULL,
+              "isRead" integer DEFAULT 0 NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+
+          // 0-j. reports
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "reports" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "reporterId" integer NOT NULL,
+              "targetType" varchar(20) NOT NULL,
+              "targetId" integer NOT NULL,
+              "reason" text NOT NULL,
+              "status" varchar(20) DEFAULT 'pending' NOT NULL,
+              "resolvedAt" timestamp,
+              "createdAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+
+          // 0-k. blocks
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "blocks" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "blockerId" integer NOT NULL,
+              "blockedId" integer NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+
+          // 0-l. calendar_events
+          await _db!.execute(sql`
+            CREATE TABLE IF NOT EXISTS "calendar_events" (
+              "id" serial PRIMARY KEY NOT NULL,
+              "userId" integer,
+              "title" varchar(200) NOT NULL,
+              "description" text,
+              "startDate" timestamp NOT NULL,
+              "endDate" timestamp NOT NULL,
+              "category" varchar(50) DEFAULT 'personal' NOT NULL,
+              "isAllDay" integer DEFAULT 0 NOT NULL,
+              "hasRsvp" integer DEFAULT 0 NOT NULL,
+              "createdAt" timestamp DEFAULT now() NOT NULL
+            );
+          `);
+
+          console.log("[Database] 핵심 테이블(posts, users 등) DDL 동기화 완료");
+        } catch (coreDdlErr) {
+          console.warn("[Database] 핵심 테이블 DDL 동기화 경고:", coreDdlErr);
+        }
+
         try {
           // 1. emailVerifications 테이블 생성
         try {
