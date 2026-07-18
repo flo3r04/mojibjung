@@ -96,7 +96,15 @@ let _db: ReturnType<typeof drizzle> | null = null;
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      const queryClient = postgres(process.env.DATABASE_URL);
+      const needsSsl =
+        process.env.NODE_ENV === "production" ||
+        process.env.RENDER === "true" ||
+        process.env.DATABASE_URL.includes("render.com") ||
+        process.env.DATABASE_URL.includes("sslmode=require");
+
+      const queryClient = postgres(process.env.DATABASE_URL, {
+        ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
+      });
       _db = drizzle(queryClient);
 
       // [보안 인증용 emailVerifications 및 신규 고도화 캘린더 기능 테이블 강제 자동 싱크]

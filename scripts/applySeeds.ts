@@ -36,7 +36,16 @@ async function main() {
     return;
   }
 
-  const sql = postgres(DATABASE_URL, { max: 1 });
+  const needsSsl =
+    process.env.NODE_ENV === "production" ||
+    process.env.RENDER === "true" ||
+    DATABASE_URL.includes("render.com") ||
+    DATABASE_URL.includes("sslmode=require");
+
+  const sql = postgres(DATABASE_URL, {
+    max: 1,
+    ssl: needsSsl ? { rejectUnauthorized: false } : undefined,
+  });
 
   try {
     for (const file of files) {
