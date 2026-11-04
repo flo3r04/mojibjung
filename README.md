@@ -1,687 +1,382 @@
-# 모집중 — 한국외대 글로벌 커뮤니티
+# 모집중 (Mojibjung) — 한국외대 실명 기반 글로벌 커뮤니티
 
-한국외국어대학교 재학생을 대상으로 하는 **실명 기반 모집 커뮤니티** 웹 서비스입니다.
-동아리 · 학회 · 스터디 모집글을 올리고, 관심 키워드 기반으로 추천받고, 신청 · 쪽지를 통해 연결될 수 있습니다.
-
----
-
-## 목차
-
-- [최근 추가된 기능 타임라인 (테스트 가이드)](#최근-추가된-기능-타임라인-테스트-가이드)
-- [기술 스택](#기술-스택)
-- [프로젝트 구조](#프로젝트-구조)
-- [데이터베이스 스키마](#데이터베이스-스키마)
-- [백엔드 API](#백엔드-api)
-- [핵심 기술 설계 및 구현 원리](#핵심-기술-설계-및-구현-원리)
+> **한국외국어대학교 재학생을 위한 폐쇄형 실명 기반 동아리 · 학회 · 프로젝트 모집 및 자치 그룹 협업 플랫폼**  
+> 이 문서는 본 프로젝트를 처음 접하는 팀원, 기획자, 개발자 누구나 서비스의 모든 기능과 세부 동작 원리를 완벽히 파악할 수 있도록 작성된 **웹 서비스 기능 및 기술 명세서**입니다.
 
 ---
 
-## 최근 추가된 기능 타임라인 (테스트 가이드)
+## 📑 목차
 
-모집중 플랫폼에 최근 추가된 중요 신규 기능들을 최신순(역순) 타임라인으로 정리했습니다. 각 기능별 주요 테스트 시나리오와 연동 방식을 참고하여 검증을 진행할 수 있습니다.
-
-### 📅 1. 하위 스터디 및 주차별 회의록 관리 시스템 (Sub-Study & Meeting Minutes Workflow) - 2026.06 [최신]
-* **개요**: 동아리/학회(상위 그룹) 내부에 개별 스터디(하위 소그룹)를 개설하고, 각 스터디장들이 스터디 팀원을 지정/저장하여 전용 주차별 회의록 및 요약 문서를 관리할 수 있는 노션 스타일의 스터디 워크플로우 시스템입니다.
-* **주요 테스트 시나리오**:
-  1. **스터디 개설**: 상위 그룹의 리더(또는 어드민) 계정으로 로그인 후 **[그룹 허브] → [소모임/스터디]** 탭 진입. **"+ 신규 스터디 개설"** 버튼을 눌러 스터디를 추가하고 특정 회원을 스터디장으로 임명합니다.
-  2. **팀원 지정**: 해당 스터디장 계정으로 로그인한 후 워크스페이스의 **[팀원 구성]** 탭으로 진입합니다. 상위 그룹 단원 목록 중 스터디에 참여할 팀원들을 체크박스로 다중 선택한 후 **"팀원 구성 저장"**을 클릭합니다.
-  3. **회의록 작성 및 공유**: 스터디 소속원 계정으로 로그인 후 **[회의록 & 문서]** 탭에서 **"+ 회의록 작성"**을 클릭해 회의 일자, 제목, 내용을 입력하여 게재합니다.
-  4. **본문 열람 및 권한 격리**: 스터디원 및 그룹 리더가 등록된 회의록 리스트 카드를 클릭하여 팝업 모달로 상세 회고 내용을 확인합니다. 스터디에 소속되지 않은 일반 그룹원 계정으로 접속 시 해당 스터디 워크스페이스 진입 및 문서 조회가 차단되는지 확인합니다.
-* **주요 관련 파일**:
-  * 스키마: [drizzle/schema.ts](file:///c:/Users/songs/Desktop/깃허브/mojibjung/drizzle/schema.ts) (`groupStudies`, `groupStudyMembers`, `groupStudyMinutes` 정의)
-  * DB 쿼리: [server/db.ts](file:///c:/Users/songs/Desktop/깃허브/mojibjung/server/db.ts) (스터디 및 회의록 CRUD 함수 및 DDL 동기화 검증 레이어)
-  * 백엔드 API: [server/routers.ts](file:///c:/Users/songs/Desktop/깃허브/mojibjung/server/routers.ts) (`createSubStudy`, `updateSubStudyMembers`, `listSubStudyMinutes` 등 9개 API)
-  * 프론트엔드 UI: [client/src/pages/GroupHub.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/GroupHub.tsx) (`GroupStudiesSection`, `SubStudyWorkspace` 컴포넌트 추가)
-
-### 🎓 2. 그룹 활동 종료 및 아카이브 전시관 (Group Archiving & Showcase) - 2026.06
-* **개요**: 스터디나 동아리 학기가 끝났을 때 리더가 최종 회고록(회의록 링크, 성과 요약, 대표 이미지 등)을 입력하여 포트폴리오(아카이브)를 발행하고, 메인 홈에 박제하여 누구나 우수 그룹의 상위 포트폴리오를 조회할 수 있게 연동한 기능입니다.
-* **주요 테스트 시나리오**:
-  1. **아카이브 발행**: 그룹 리더 계정으로 **[그룹 허브] → [그룹 설정/아카이브]** 진입. **"그룹 활동 종료 및 아카이브 발행"**을 클릭하여 대표 사진(로컬 파일) 및 최종 회고록(수행 프로젝트 링크, 멤버 수, 대표 회고 등)을 채워 제출합니다.
-  2. **읽기 전용 상태 확인**: 발행 완료 즉시 해당 그룹 허브의 채팅창 입력란, 일정 추가, 글쓰기 버튼 등이 비활성화되어 완전한 **읽기 전용(Read-only)** 상태로 잠금 처리되는지 확인합니다.
-  3. **전시관 열람**: 로그아웃 혹은 일반 회원 계정으로 메인 홈 화면([Home.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/Home.tsx)) 하단으로 이동하여 **"우수 스터디 & 동아리 아카이브 전시관"**에 발행된 아카이브 카드를 확인하고, 클릭 시 상세 회고 팝업이 활성화되는지 검증합니다.
-* **주요 관련 파일**:
-  * [client/src/pages/GroupHub.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/GroupHub.tsx) (아카이브 발행 모달 및 권한 잠금 제어)
-  * [client/src/pages/Home.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/Home.tsx) (홈 화면 전시관 카드 슬라이더 및 아카이브 상세 모달)
-
-### 📁 3. 그룹 자료실 및 실제 로컬 파일 업로드 (Group Files & Local Upload) - 2026.06
-* **개요**: 동아리/스터디 부원 간 원활한 자료 공유를 위해 가상 텍스트가 아닌 실제 컴퓨터 하드디스크나 모바일 내 파일 저장소에서 파일(이미지, PDF, ZIP 등, 최대 10MB)을 업로드하고 내려받을 수 있는 클라우드 연동 업로드 시스템입니다.
-* **주요 테스트 시나리오**:
-  1. **로컬 파일 감지**: **[그룹 허브] → [자료실]** 탭 진입 후 **"파일 선택"** 버튼을 클릭하여 기기 내 실제 파일 하나를 선택합니다.
-  2. **실제 업로드**: 파일 크기 및 포맷이 자동 검출되어 인풋에 채워지면 **"업로드"**를 실행합니다. 백엔드에서 base64 직렬화 버퍼를 전송받아 Cloudinary 저장소에 실제 업로드 및 다운로드용 https URL을 받아오는 구조를 검증합니다.
-  3. **다운로드/삭제**: 자료실 리스트의 파일명을 클릭하여 다운로드창이 활성화되는지 확인하고, 본인이 올린 파일 우측의 **"삭제"** 버튼 작동 여부를 테스트합니다.
-* **주요 관련 파일**:
-  * [client/src/pages/GroupHub.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/GroupHub.tsx) (로컬 File Input 감지, base64 인코딩 및 UI 테이블 렌더링)
-  * [server/routers.ts](file:///c:/Users/songs/Desktop/깃허브/mojibjung/server/routers.ts) (바이너리 버퍼 스트림 업로드 API)
-
-### 🔔 4. 실시간 알림 센터 (Real-time Notification Center) - 2026.06
-* **개요**: 쪽지 수신, 지원서 합격/거절 처리, 내 모집글 댓글/답글 등록, 소속 그룹 내 공지 및 캘린더 등록 등의 액션이 발생할 때 해당 대상자에게 실시간 알림을 생성하고 바로가기 이동을 보장하는 네비게이션 알림판입니다.
-* **주요 테스트 시나리오**:
-  1. **트리거 생성**: A 계정으로 B 계정의 글에 댓글을 달거나, B 계정으로 온 1:1 쪽지를 전송해 봅니다.
-  2. **배지 및 애니메이션**: B 계정으로 접속 시 상단 네비게이션 바([Navbar.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/components/Navbar.tsx)) 우측 상단 종 모양(🔔) 아이콘 옆에 미확인 알림 숫자 배지가 생기며, 맥박(Pulse) 주기 애니메이션이 역동적으로 작동하는지 확인합니다.
-  3. **알림 읽음 및 바로가기**: 종 아이콘을 클릭하여 드롭다운 알림 팝오버를 열고, 개별 알림 클릭 시 읽음 동기화(`isRead = true`)가 백엔드에 즉각 반영되는지 확인하며, 동시에 해당 게시글이나 쪽지방으로 바로 랜딩되는지 테스트합니다.
-* **주요 관련 파일**:
-  * [client/src/components/Navbar.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/components/Navbar.tsx) (알림 내역 팝오버 렌더링 및 읽음 처리)
-  * [server/routers.ts](file:///c:/Users/songs/Desktop/깃허브/mojibjung/server/routers.ts) (알림 리스트 조회 및 일괄 읽음 처리 API)
-
-### 👤 5. 실명 표기 버그 수정 및 실명 데이터 연동 고도화 (Real Name Integration) - 2026.06
-* **개요**: 익명성 문제를 방지하고 학교 실명 커뮤니티로서의 신뢰성을 지키기 위해, 플랫폼 내 모든 유저 이름 출력 공간에 닉네임 대신 가입 시 인증된 실명(`users.realName`)이 최우선 표시되도록 조인 쿼리를 수정 보완했습니다.
-* **주요 테스트 시나리오**:
-  1. 실명 인증이 완료된 계정(예: 홍길동)으로 모집글에 신청서를 작성하거나 대화방 채팅 메시지를 전송합니다.
-  2. 모집 작성자 관리자 페이지([PostManage.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/PostManage.tsx)), 그룹 허브 단원 목록, 쪽지방 등 모든 노출 영역에서 닉네임 대신 `홍길동` 실명이 명확하게 연동되어 표기되는지 대조 확인합니다.
-* **주요 관련 파일**:
-  * [server/db.ts](file:///c:/Users/songs/Desktop/깃허브/mojibjung/server/db.ts) (SQL `coalesce(users.realName, users.name)` 구문 핵심 조인 쿼리 전면 배치)
-  * [client/src/pages/PostManage.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/PostManage.tsx) (지원자 관리창 실명 표기)
-
-### 🗓️ 6. 한국외대 공식 학사일정 자동 시딩 및 홈 화면 D-Day 연동 (HUFS Calendar & D-Day Banner) - 2026.06
-* **개요**: 한국외대 공식 학사일정 및 공휴일 데이터베이스 자동 주입 및 메인 배너의 동적 D-Day 표시 연동 기능입니다.
-* **주요 테스트 시나리오**:
-  1. **D-Day 실시간 계산**: 메인 홈 화면([Home.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/Home.tsx)) 상단 배너에서 현재 날짜 이후에 있는 가장 임박한 학사일정(예: 중간고사, 기말고사, 종강일 등)을 자동 감지해 D-몇일 남았는지를 동적으로 그려주는지 확인합니다.
-  2. **달력 연동**: 캘린더 페이지([CalendarPage.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/CalendarPage.tsx))에 들어가 시딩된 학사일정들이 보라색 범례 카테고리로 달력 그리드에 정확히 표시되는지 검증합니다.
-* **주요 관련 파일**:
-  * [drizzle/seeds/002_calendar_events.sql](file:///c:/Users/songs/Desktop/깃허브/mojibjung/drizzle/seeds/002_calendar_events.sql) (학사일정 1년치 정밀 SQL 데이터)
-  * [client/src/pages/Home.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/Home.tsx) (D-Day 배너 렌더링 로직)
-
-### 🗳️ 7. 캘린더 RSVP 투표, 테마 색상 커스텀, 데일리 투두 위젯 (RSVP & Todo Widget) - 2026.06
-* **개요**: 캘린더 일정 참석 공유 투표 시스템, 달력 테마 컬러 개인별 커스텀 지정, 및 데일리 투두 리스트 연동 기능입니다.
-* **주요 테스트 시나리오**:
-  1. **RSVP 투표**: 달력 혹은 그룹 허브의 일정 뷰에서 RSVP(참석/불참/보류) 선택 버튼을 눌러 상태 투표를 진행합니다. 운영진 계정으로 **"리더 권한: 상세 명단 보기"**를 클릭하여 참석/불참/보류에 투표한 전체 명단을 실시간으로 확인합니다.
-  2. **카테고리 컬러 변경**: 일정 추가/수정 사이드바 창에서 원하는 색상 팔레트 서클을 선택하면 달력 수평 일정 바에 해당 커스텀 테마 색상이 즉시 연동되는지 검증합니다.
-  3. **투두리스트 체크**: 우측 데일리 패널의 체크박스 상태가 캘린더 진행률에 실시간 매핑되는지 확인합니다.
-* **주요 관련 파일**:
-  * [client/src/pages/CalendarPage.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/CalendarPage.tsx) (달력 그리드, RSVP 버튼 컴포넌트, 카테고리 컬러 에디터)
-  * [client/src/pages/TodoPage.tsx](file:///c:/Users/songs/Desktop/깃허브/mojibjung/client/src/pages/TodoPage.tsx) (투두 전용 개별 페이지 분리 연동)
+1. [서비스 개요 및 핵심 철학](#1-서비스-개요-및-핵심-철학)
+2. [전체 시스템 아키텍처 및 기술 스택](#2-전체-시스템-아키텍처-및-기술-스택)
+3. [전체 서비스 기능 상세 명세 (기능별 총정리)](#3-전체-서비스-기능-상세-명세-기능별-총정리)
+   - [3.1 사용자 인증 및 계정 관리 (Auth & User)](#31-사용자-인증-및-계정-관리-auth--user)
+   - [3.2 상단 글로벌 헤더 & 통합 알림 센터 (Navbar & Notifications)](#32-상단-글로벌-헤더--통합-알림-센터-navbar--notifications)
+   - [3.3 메인 홈 화면 (Home)](#33-메인-홈-화면-home)
+   - [3.4 모집 게시판 (Board)](#34-모집-게시판-board)
+   - [3.5 모집글 작성 및 스마트 임시저장 (PostForm)](#35-모집글-작성-및-스마트-임시저장-postform)
+   - [3.6 모집글 상세 조회 및 지원하기 (PostDetail)](#36-모집글-상세-조회-및-지원하기-postdetail)
+   - [3.7 지원자 관리 및 칸반 보드 (PostManage)](#37-지원자-관리-및-칸반-보드-postmanage)
+   - [3.8 마이 캘린더 & 일정 통합 (CalendarPage)](#38-마이-캘린더--일정-통합-calendarpage)
+   - [3.9 데일리 마이 투두 (TodoPage)](#39-데일리-마이-투두-todopage)
+   - [3.10 마이 스케줄 / 학교 시간표 (SchedulePage)](#310-마이-스케줄--학교-시간표-schedulepage)
+   - [3.11 그룹 허브 & 자치 동아리 워크스페이스 (GroupHub)](#311-그룹-허브--자치-동아리-워크스페이스-grouphub)
+   - [3.12 1:1 쪽지 및 실시간 대화 (Messages)](#312-11-쪽지-및-실시간-대화-messages)
+   - [3.13 마이페이지 & 프로필 관리 (MyPage & Profile)](#313-마이페이지--프로필-관리-mypage--profile)
+   - [3.14 유저 차단 관리 (BlockManage)](#314-유저-차단-관리-blockmanage)
+   - [3.15 관리자 대시보드 (Admin)](#315-관리자-대시보드-admin)
+4. [데이터베이스 스키마 모델링 (33개 테이블)](#4-데이터베이스-스키마-모델링-33개-테이블)
+5. [백엔드 API 구조 (15개 tRPC 라우터)](#5-백엔드-api-구조-15개-trpc-라우터)
+6. [핵심 엔지니어링 및 문제 해결 사례](#6-핵심-엔지니어링-및-문제-해결-사례)
+7. [로컬 실행 및 배포 가이드](#7-로컬-실행-및-배포-가이드)
 
 ---
 
-## 기술 스택
+## 1. 서비스 개요 및 핵심 철학
 
-| 영역 | 기술 |
-|---|---|
-| **프론트엔드** | React 19.2, Vite 7, wouter (라우팅), Tailwind CSS 4 + shadcn/ui (40+ Radix 컴포넌트), Framer Motion, React Hook Form + Zod, Recharts (지원자 통계) |
-| **상태 관리** | tRPC + React Query (서버 상태), React Context (테마) |
-| **백엔드** | Express 4, tRPC 11, Drizzle ORM, **Resend API (우선) + Nodemailer (SMTP 폴백)**, jose (JWT) |
-| **인증** | Kakao OAuth 2.0 + HttpOnly 쿠키 + JWT (1년 단일; Access/Refresh 분리 예정) + 학교 이메일 인증 (6자리 코드, SHA-256 해시) |
-| **데이터베이스** | PostgreSQL (21개 테이블) |
-| **이미지 저장소** | Cloudinary |
-| **테스트** | Vitest (22 케이스 — 권한 회귀·검증 토큰·rate limit 등) |
-| **패키지 매니저** | pnpm 10.4.1 |
-| **빌드 도구** | esbuild (서버), Vite (클라이언트), cross-env (Windows 호환) |
-| **배포** | Render.com |
+기존 대학 커뮤니티의 익명성으로 인한 **신뢰도 저하, 노쇼(No-Show), 모집 후 소통 채널 분산(카카오톡, 구글폼, 노션 등)** 문제를 해결하기 위해 기획되었습니다.
+
+* **실명 인증 기반 네트워크**: 카카오 소셜 계정 연동 후, 교내 학적(실명, 학번, 학과, 입학년도) 및 학교 공식 이메일(`@hufs.ac.kr`) 인증을 필수로 거쳐야 정회원 자격이 부여됩니다.
+* **원스톱 모집 파이프라인**: 
+  1. **모집**: 커스텀 동적 설문 빌더를 통한 자유로운 지원서 양식 생성
+  2. **선발**: Recharts 통계 차트 + 드래그 앤 드롭 **지원자 칸반 보드** 지원 (대기중 ↔ 1차합격 ↔ 수락/거절)
+  3. **활동 연계**: 합격자들을 자치 **'그룹(Group Hub)'**으로 자동 연동하여 공지, 일정, 채팅, 자료실, 하위 스터디, 모임 시간 조율 투표까지 올인원으로 지원
+* **대학생 맞춤 일정 관리**: 한국외대 공식 학사일정 + 법정 공휴일 + 개인 일정 + 지원 마감일 + 학교 주간 시간표 + 데일리 투두를 하나의 생태계로 통합.
 
 ---
 
-## 프로젝트 구조
+## 2. 전체 시스템 아키텍처 및 기술 스택
 
 ```
-hufs-global-community/
-├── client/                  # React 프론트엔드
-│   ├── src/
-│   │   ├── App.tsx              # 라우터 정의 + OnboardingGuard + Disabled 차단
-│   │   ├── pages/               # 14개 페이지 (아래 "프론트엔드 페이지" 표 참조)
-│   │   ├── pages/onboarding/    # Email / Verify / Profile (3단계 가입)
-│   │   ├── components/          # Logo, Navbar, PostCard, MessageModal, ReportDialog 등
-│   │   ├── components/ui/       # shadcn/ui 컴포넌트 (40+)
-│   │   ├── lib/                 # tRPC 클라이언트, 유틸
-│   │   ├── contexts/            # ThemeContext (다크모드)
-│   │   ├── _core/hooks/useAuth.ts
-│   │   └── const.ts             # 카카오 로그인 URL 동적 생성
-│   └── public/logo.svg          # 모집중 부엉이 로고
-│
-├── server/                  # Express + tRPC 백엔드
-│   ├── _core/
-│   │   ├── index.ts                # 서버 진입점 + 부트업 검증 (JWT/SMTP/CORS)
-│   │   ├── trpc.ts                 # 4단계 미들웨어 (public / protected / protectedVerified / admin)
-│   │   ├── context.ts              # JWT 검증 + 사용자 조회
-│   │   ├── oauth.ts                # Kakao OAuth 콜백 + 가입 상태 기반 리다이렉트
-│   │   ├── cookies.ts              # 쿠키 설정
-│   │   ├── env.ts                  # 환경변수 게이트웨이 + JWT/SMTP/CORS 헬퍼
-│   │   ├── audit.ts                # AuditLog 헬퍼 (logAuditFromCtx / logAuditFromReq)
-│   │   ├── rateLimit.ts            # 메모리 기반 sliding window
-│   │   └── verificationToken.ts    # 검증 토큰 JWT 발급/검증
-│   ├── routers.ts           # tRPC 13개 라우터 모듈
-│   ├── db.ts                # DB 접근 함수
-│   ├── email.ts             # Resend (우선) + Nodemailer SMTP (폴백) + 도메인 검증·해시
-│   ├── storage.ts           # Cloudinary 이미지 업로드
-│   ├── community.test.ts    # 통합 테스트 (16 케이스)
-│   ├── email.test.ts        # 도메인·해시 검증 (9)
-│   ├── rateLimit.test.ts    # sliding window (5)
-│   ├── verificationToken.test.ts   # JWT 발급/위조 거부 (6)
-│   └── auth.logout.test.ts  # 로그아웃 (1)
-│
-├── shared/                  # 프론트/백엔드 공용 (COOKIE_NAME 등)
-│
-├── drizzle/                 # ORM 스키마 & 마이그레이션
-│   ├── schema.ts            # 21개 테이블 정의 (인증·콘텐츠·상호작용·그룹 시스템)
-│   ├── 0000_*.sql ~ 0004_*.sql
-│   ├── seeds/               # 데이터 시드 (학과 마스터 등) — pnpm db:seed
-│   ├── _archive/            # drizzle-kit 흐름에서 제외된 참고용 SQL
-│   └── meta/
-├── scripts/applySeeds.ts    # pnpm db:seed 진입점
-│
-├── patches/                 # wouter@3.7.1 패치
-├── package.json             # dev:server 는 cross-env 로 Windows 호환
-├── drizzle.config.ts
-├── vite.config.ts
-├── vitest.config.ts
-└── render.yaml              # Render 배포 설정
++-----------------------------------------------------------------------------------------+
+|                                    Client (Browser)                                     |
+|  - React 19.2 + Vite 7 (SPA Architecture)                                               |
+|  - UI & Style: Tailwind CSS 4 + shadcn/ui (Radix Primitives) + Framer Motion (애니메이션)|
+|  - Routing: wouter (3.3.5)                                                              |
+|  - State & Data Fetching: tRPC React Query v11 + TanStack React Query v5                |
+|  - Dnd / Visualization: @dnd-kit (칸반 DND), Recharts (지원자 통계)                      |
++-----------------------------------------------------------------------------------------+
+                                           │
+                                           │ HTTP / RPC (HttpOnly Cookie 세션 교환)
+                                           ▼
++-----------------------------------------------------------------------------------------+
+|                                  Server (Node.js/Express)                               |
+|  - Architecture: Fullstack Monolith (단일 프로세스 정적 파일 서빙 + API 동시 처리)      |
+|  - Engine: Express 4 + tRPC 11 (End-to-End Type Safety)                                 |
+|  - Authentication: Kakao OAuth 2.0 + Jose JWT (HttpOnly Cookie)                        |
+|  - Security: Rate Limiting (Sliding Window), crypto timingSafeEqual (타이밍 공격 방어)  |
++-----------------------------------------------------------------------------------------+
+            │                               │                               │
+            ▼                               ▼                               ▼
++-----------------------+       +-----------------------+       +-----------------------+
+|  PostgreSQL Database  |       |     Mail Service      |       |    Storage / Media    |
+| - Drizzle ORM (33 tbl)|       | - Resend API (우선)   |       | - Cloudinary SDK      |
+| - JSONB 비정형 모델링 |       | - Nodemailer (SMTP폴백|       |   (이미지/파일 업로드)|
+| - Partial Index (NULL)|       |                       |       |                       |
++-----------------------+       +-----------------------+       +-----------------------+
 ```
 
----
-
-## 데이터베이스 스키마
-
-`drizzle/schema.ts`에 정의:
-
-### users — 정체성 + 가입 상태 머신
-| 컬럼 | 타입 | 설명 |
+| 구분 | 주요 기술 | 상세 내용 |
 |---|---|---|
-| id | serial PK | |
-| openId | varchar UNIQUE | Kakao OAuth ID |
-| name, email, loginMethod | varchar | Kakao 닉네임·이메일 (참고용) |
-| role | enum | `user` \| `admin` |
-| **status** | enum | `pending` \| `verified` \| `disabled` — 권한 미들웨어가 분기 |
-| **realName** | varchar(50) | 실명 (가입 단계 입력) |
-| **studentId** | varchar(10) UNIQUE† | 학번 |
-| **admissionYear** | smallint | 입학년도 |
-| **departmentId** | int FK → departments | 학과 (정식 소유자) |
-| **verifiedEmail** | varchar(320) UNIQUE† | 인증 통과한 `@hufs.ac.kr` 이메일 |
-| avatarUrl | text | 프로필 이미지 |
-| createdAt, updatedAt, lastSignedIn | timestamp | |
+| **프론트엔드** | React 19.2, Vite 7 | 최신 리액트 아키텍처, 초고속 번들링 및 HMR |
+| **스타일 / 인터랙션**| Tailwind CSS 4, shadcn/ui | Radix UI 기반 모던 UI, 다크모드(`next-themes`), Framer Motion 트랜지션 |
+| **데이터 페칭 / 통신**| tRPC 11, TanStack Query | REST 대신 컴파일 타임 타입 검증 및 제로 보일러플레이트 API 통신 |
+| **백엔드 프레임워크**| Express 4, TypeScript | 단일 모놀리스 배포로 CORS 문제 원천 차단 |
+| **데이터베이스 / ORM**| PostgreSQL, Drizzle ORM | 33개 정규화 테이블 + 동적 폼 및 응답 저장을 위한 JSONB 하이브리드 설계 |
+| **인증 / 보안** | Kakao OAuth 2.0, Jose | 1년 세션 쿠키, SHA-256 해시 OTP, 상수 시간 비교(`timingSafeEqual`) |
+| **미디어 & 인프라** | Cloudinary, Resend, Render | 클라우드 미디어 CDN 호스팅, 메일 발송 자동 폴백 무장애 구성 |
 
-† partial unique — NULL 은 충돌 무관, 채워지면 1인 1계정 보장
+---
 
-### departments — 학과 마스터 (시드)
-- 한국외대 글로벌캠 학과 34개 (`pnpm db:seed` 로 적용)
+## 3. 전체 서비스 기능 상세 명세 (기능별 총정리)
 
-### profiles (users 1:1) — 자유 변경 영역
-- bio (200자), grade, keywords (JSON 배열, 최대 10개)
-- `department` 자유문자열 컬럼은 deprecated — `users.departmentId` 사용
+웹사이트를 구성하는 화면별 모든 세부 기능을 누락 없이 정리하였습니다.
 
-### emailVerifications — 학교 이메일 인증 코드
-- userId, email, codeHash (SHA-256), attempts ≤ 5, expiresAt (+5분), verifiedAt, consumedAt, ipAddress
+### 3.1 사용자 인증 및 계정 관리 (Auth & User)
+* **카카오 간편 로그인 (`OAuth 2.0`)**: 원클릭 카카오 로그인 연동. 카카오 고유 OpenID를 식별자로 채택하여 패스워드 유출 위험 원천 제거.
+* **유한 상태 머신 (FSM) 가입 프로세스**:
+  * `pending` (가입 대기): 로그인 직후 학적 미인증 상태. 쓰기 권한이 제한되며 프로필/인증 화면으로 안내.
+  * `verified` (정회원): 학번, 실명, 학과, 학교 이메일 검증을 완료한 신뢰 유저. 모든 서비스 기능 사용 가능.
+  * `disabled` (계정 정지): 신고 누적 또는 관리자에 의해 제재된 계정. 세션 쿠키 즉시 소멸 및 차단 화면으로 격리.
+* **3단계 온보딩 마법사 & 슬라이드 애니메이션**:
+  * 1단계: 학교 공식 웹메일(`@hufs.ac.kr`)로 6자리 보안 OTP 코드 전송.
+  * 2단계: 5분 유효시간 카운트다운 및 6자리 OTP 입력 검증 (불일치 시 5회 시도 제한).
+  * 3단계: 실명, 학번(9~10자리 숫자 유효성 검사), 입학년도, 소속 학과(외대 34개 학과 검색 선택) 입력 후 정회원 승격.
+* **안전한 회원 탈퇴 (`withdraw`)**: 사용자 본인이 "탈퇴하기" 문구를 타이핑하여 확정 시, 작성 글, 지원 내역, 쪽지, 투표, 그룹 멤버십 등 10여 개 관계 테이블의 레코드를 단일 트랜잭션(`db.transaction`)으로 연쇄 영구 파기.
 
-### verificationTokens — 검증 토큰 1회용 보장
-- jti PK (JWT 의 jti), userId, purpose, verificationId, expiresAt, consumedAt
+### 3.2 상단 글로벌 헤더 & 통합 알림 센터 (Navbar & Notifications)
+* **2단 반응형 글로벌 네비게이션**:
+  * 상단: 로고 마스코트, 서비스 검색, 다크모드/라이트모드 원클릭 토글, 실시간 알림 벨, 내비게이션 프로필 아바타.
+  * 하단: `전체`, `동아리`, `학회`, `프로젝트`, `마이캘린더`, `마이스케줄`, `마이투두`, `그룹허브` 퀵 메뉴 탭.
+* **카테고리 드롭다운 호버 브리지**: 메뉴 호버 시 드롭다운 패널과 헤더 사이의 간격을 가상 패딩으로 메워 마우스 이동 시 메뉴가 꺼지는 현상 원천 차단.
+* **실시간 알림 센터 (Notifications Center)**:
+  * 모집글 지원서 접수 알림 (주최자에게 발송)
+  * 지원서 심사 결과 통보 (1차 합격, 최종 수락, 거절 사유 알림)
+  * 내가 쓴 글에 달린 댓글/대댓글 알림
+  * 새로운 1:1 쪽지 수신 알림
+  * 그룹 공지사항 등록 및 시간 조율 투표 개설 알림
+  * '모두 읽음 표시' 및 개별 알림 클릭 시 해당 상세 화면으로 즉시 라우팅.
 
-### refreshTokens — Access/Refresh 회전·블랙리스트 (Step 6-b 에서 사용)
-- tokenHash UNIQUE, revokedAt, revokedReason, replacedBy
+### 3.3 메인 홈 화면 (Home)
+* **동적 D-Day 상단 비주얼 캐러셀**:
+  * 외대 학사일정(수강신청, 시험, 축제, 종강 등)과 연동되어 실시간 디데이(D-Day)를 계산하여 노출하는 4개의 와이드 카드 슬라이드.
+  * 자동 롤링(Auto-play) 및 수동 인디케이터 제어.
+* **개인화 추천 피드 (Smart Recommendation)**:
+  * 사용자가 프로필에 설정한 관심 키워드(예: `AI`, `웹개발`, `스페인어`, `디자인`)와 모집글의 태그/제목을 실시간 매칭하여 개인별 맞춤 모집글 우선 추천.
+* **실시간 카테고리별 최신글 피드**: 동아리 / 학회 / 프로젝트 카테고리별 상위 4개 최신글 카드를 실시간 렌더링.
 
-### auditLog — 감사 로그
-- userId, action, ipAddress, userAgent, metadata
+### 3.4 모집 게시판 (Board)
+* **복합 다중 필터링 시스템**:
+  * 카테고리 필터: 전체, 동아리, 학회, 프로젝트, 기타
+  * 상태 필터: 전체, 모집중, 마감
+  * 북마크 필터: 내가 찜(북마크)한 글만 따로 모아보기 지원
+* **디바운스 실시간 검색**: 제목 및 본문 키워드를 실시간으로 입력받아 서버 부하 없이 디바운스 검색.
+* **정렬 기준**: 최신 등록순, 인기/조회순, 마감 임박순 정렬.
+* **모집 카드 컴포넌트 (`PostCard`)**:
+  * 썸네일 배너 이미지, 카테고리 뱃지, 실시간 D-Day 계산 뱃지(`D-3`, `오늘마감`, `모집완료`), 좋아요/북마크 카운트, 주최자 실명 및 학과 배지 표기.
 
-### posts / comments / likes / bookmarks
-- 게시글·댓글·반응 테이블
-- `posts` 신규 컬럼: `formSchema` (JSONB, 커스텀 폼), `hasInterview` (면접 단계), `groupId` (그룹 연동)
+### 3.5 모집글 작성 및 스마트 임시저장 (PostForm)
+* **스마트 로컬 임시저장 (Auto-Save Draft)**:
+  * 작성 중인 제목, 카테고리, 본문을 1초마다 브라우저 `localStorage`에 자동 보관.
+  * 브라우저 종료나 새로고침 후 재방문 시 "작성 중이던 임시 저장 글이 있습니다. 불러오시겠습니까?" 알림 복구 모달 지원.
+* **동적 질문 폼 빌더 (Dynamic Form Builder)**:
+  * 구글 폼이나 네이버 폼 없이 플랫폼 내에서 지원서 질문지를 생성.
+  * 질문 유형: **단답형 텍스트**, **장문형 서술형**, **단일 선택(Radio)**, **다중 선택(Checkbox)** 지원.
+  * 각 문항별 '필수 응답' 여부 설정 및 문항 순서 변경/삭제 가능.
+* **면접 전형(`hasInterview`) 활성화 옵션**: 서류 전형 단독 진행 또는 1차 서류 통과 후 면접 전형을 진행할지 토글 스위치로 설정.
+* **활동 그룹 사전 연동 (`groupId`)**: 모집 완료 시 지원자들을 합류시킬 자치 그룹을 선택하여 모집과 그룹 운영을 매끄럽게 연결.
+* **대표 이미지 업로드**: Cloudinary 연동을 통한 포스터 이미지 업로드 및 미리보기.
 
-### applications — 모집 신청
-- `(postId, applicantId)` UNIQUE 로 중복 신청 차단
-- status: `대기중` / `1차합격` / `수락` / `거절` (4단계)
-- `answers` (JSONB, 폼 응답), `rejectReason` (text, 거절 사유)
+### 3.6 모집글 상세 조회 및 지원하기 (PostDetail)
+* **모집 요강 정보 구체화**: 활동 기간, 모집 인원, 마감 기한, 주최자 프로필, 면접 전형 안내.
+* **지원서 제출 모달 (Dynamic Application Modal)**:
+  * 작성자가 등록해 둔 질문 폼을 실시간으로 읽어와 동적 폼을 구성하고 지원자의 응답을 유효성 검사.
+  * 복합 고유키 제약조건으로 1인 1회 지원 보장 (중복 지원 원천 차단).
+* **마이 캘린더 연동 버튼**: 해당 모집글의 마감 일정을 내 마이 캘린더에 원클릭으로 등록/해제.
+* **소통 및 안전 장치**:
+  * 계층형 댓글 및 대댓글 시스템
+  * 주최자에게 바로 쪽지 보내기 버튼
+  * 신고하기 팝업(`ReportDialog` - 게시글/댓글 4종 신고 사유 접수)
+  * 악성 유저 즉시 차단하기
 
-### messages — 1:1 쪽지
-- senderId, receiverId, postId(optional), content, isRead
+### 3.7 지원자 관리 및 칸반 보드 (PostManage)
+* **Recharts 지원자 통계 시각화**:
+  * 지원자 전형 상태 분포 (대기중 / 1차 합격 / 최종 수락 / 거절) 도넛/파이 차트
+  * 주관식/객관식 설문 문항 응답률 시각화
+* **지원자 칸반 보드 뷰 (Kanban View)**:
+  * `@dnd-kit` 기반의 드래그 앤 드롭 지원자 심사 인터페이스 지원.
+  * 지원자 카드를 집어서 `대기중` ↔ `1차 합격` ↔ `수락` ↔ `거절` 칼럼으로 드래그하여 전형 상태를 직관적으로 변경.
+  * 대기중으로의 상태 복구(되돌리기) 및 각 칼럼별 인원 수 실시간 집계.
+* **상세 지원서 검토 모달**: 지원자가 작성한 각 질문별 답변 확인, 첨부 링크 클릭, 불합격 시 정중한 거절 사유(`rejectReason`) 작성 전송.
 
-### reports — 신고 (post / user / comment / message 4종)
-- reporterId, targetType, targetId, reason, status (`pending`/`resolved`/`dismissed`)
+### 3.8 마이 캘린더 & 일정 통합 (CalendarPage)
+* **5종 일정 통합 뷰**:
+  1. 학교 공식 학사일정 (수강신청, 시험기간, 축제 등 - DB 자동 시딩)
+  2. 대한민국 법정 공휴일
+  3. 개인 마이 일정 (메모, 개인 스터디)
+  4. 내가 지원하거나 북마크한 모집글 마감일
+  5. 소속 그룹의 정기 모임 일정
+* **그리디 레인(Lane) 충돌 방지 알고리즘**: 하루에 수많은 일정이 겹쳐도 달력 UI가 깨지지 않도록 최대 3개 수평 레인으로 압축 정렬하고 초과분은 "+N개 더보기"로 그룹화 ($\mathcal{O}(N \log N)$).
+* **RSVP 참석 여부 투표 기능**: 그룹 일정 생성 시 참석 투표를 활성화하여 그룹원들이 `참석(attending)`, `불참(absent)`, `미정(maybe)`을 투표하고 참여 명단을 실시간 확인.
+* **카테고리별 테마 색상 커스텀 (Theme Picker)**: 학사일정, 개인일정, 그룹일정별로 나만의 컬러 팔레트(Blue, Purple, Emerald, Rose, Amber 등)를 지정하여 캘린더 색상을 맞춤형으로 변경.
 
-### blocks — 사용자 차단
-- `(blockerId, blockedId)` UNIQUE — 양방향 메시지·추천 알고리즘에서 차단 관계 반영
+### 3.9 데일리 마이 투두 (TodoPage)
+* **날짜별 할 일 관리**: 상단 주간 캘린더 휠과 날짜 선택 팝오버를 통해 원하는 날짜의 투두리스트를 생성/체크/삭제.
+* **진척도 표시**: 당일 등록된 할 일 개수 대비 완료율 프로그레스 바 제공.
+* **마이 캘린더 연동**: 캘린더 화면의 우측 미니 위젯과 투두 페이지가 양방향 동기화되어 일정을 보면서 할 일을 동시 체크.
 
-### calendarEvents — 마이 캘린더 일정
-- `userId NULL = 공개 학사일정/공휴일, 값 있으면 개인 일정`
-- category: `academic` / `personal` / `holiday`
+### 3.10 마이 스케줄 / 학교 시간표 (SchedulePage)
+* **한국외대 맞춤형 9교시 교시 체계 지원**:
+  * 외대 정규 교시표(A타입: 50분 수업, B타입: 75분 수업) 완벽 내장.
+* **주간 인터랙티브 시간표 그리드**: 월~금, 1~9교시 그리드에서 원하는 시간대를 클릭하여 과목명, 교수명, 강의실, 색상 태그를 지정해 강의 추가.
+* **시간표 이미지 저장/내보내기**: 완성된 내 강의 시간표를 캡처 이미지로 저장하거나 링크 복사.
+* **강의 일정 캘린더 자동 반영**: 등록한 시간표 과목들이 해당 학기 주차별 일정에 맞춰 마이 캘린더로 연동.
 
-### groups · groupRoles · groupMembers · groupAnnouncements · groupChatMessages
-- **그룹 시스템** (동아리·스터디·프로젝트 그룹 단위 운영)
-- `groups`: 고유 키(XXXX-XXXX-XXXX 형식), 카테고리, 설명
-- `groupRoles`: 커스텀 지위/권한 (관리자가 정의)
-- `groupMembers`: 가입자·역할
-- `groupAnnouncements`: 그룹 공지
-- `groupChatMessages`: 그룹 채팅 (소통 허브)
+### 3.11 그룹 허브 & 자치 동아리 워크스페이스 (GroupHub)
+동아리, 학회, 스터디 팀이 모집 완료 후 외부 툴 없이 완벽히 자치 활동할 수 있는 종합 협업 공간입니다.
 
-### 관계도
+1. **그룹 탐색 및 입장**:
+   * 내가 참여 중인 그룹 목록 카드 및 그룹 전환 사이드바.
+   * `XXXX-XXXX-XXXX` 형태의 **초대 고유 난수 키**를 입력하여 신규 멤버로 즉시 합류.
+2. **실시간 그룹 채팅 (`chat`)**:
+   * 소속 멤버들 간의 실시간 메시지 교환 및 날짜별 메시지 그룹화.
+3. **그룹 전용 캘린더 (`calendar`)**:
+   * 그룹 정기 모임, 세미나, 회식 일정을 등록하고 RSVP 참석 투표 진행.
+4. **그룹 자료실 (`files`)**:
+   * 로컬 컴퓨터 파일(PDF, PPT, ZIP, 이미지 등)을 실제 드롭존(Dropzone)으로 업로드하고 다운로드하는 클라우드 자료 공유 공간.
+5. **하위 소모임/스터디 (`studies`)**:
+   * 동아리 내에서 '알고리즘 스터디', '토익 스터디' 등 하위 소모임을 개설.
+   * 스터디장 임명, 팀원 구성, 주차별 **스터디 회의록 작성 및 아카이빙** 지원.
+6. **When2meet 스타일 모임 시간 조율 투표 (`timepolls`)**:
+   * 회의나 모임 날짜 후보군을 지정하여 투표 생성.
+   * **마우스 드래그 앤 드롭 그리드 인터페이스**: 멤버들이 자신이 가능한 시간 블록을 드래그하여 칠하면, 가장 많은 인원이 가능한 최적의 시간대가 짙은 색상의 히트맵(Heatmap)으로 계산되어 노출.
+7. **멤버 및 권한 관리 (`members`)**:
+   * 그룹장이 커스텀 직책(예: 회장, 부회장, 총무, 팀장)을 생성하고 권한 부여.
+   * 멤버 추방, 리더 위임, 소모임 개설 권한 제어.
+
+### 3.12 1:1 쪽지 및 실시간 대화 (Messages)
+* **스레드 기반 쪽지함**: 대화 상대방별 최신 대화 요약 목록 및 읽지 않은 쪽지 갯수 배지.
+* **상호 차단 검증**: 나와 대화 상대 중 한 명이라도 상대를 차단한 상태라면 쪽지 전송 버튼이 비활성화되며 사생활 보호.
+* **게시글 연계**: 특정 모집글 상세에서 보낸 쪽지인 경우 해당 모집글의 제목 바로가기가 메시지 상단에 링크되어 대화 맥락을 쉽게 파악.
+
+### 3.13 마이페이지 & 프로필 관리 (MyPage & Profile)
+* **실명 및 학교 인증 정보 카드**: 실명, 마스킹 학번, 학과, 입학년도 등 인증된 정보 열람.
+* **활동 관리 탭**: 내가 작성한 글(수정/삭제/마감 처리), 내가 지원한 내역(합격/대기 현황 실시간 확인), 관심 북마크 목록.
+* **프로필 설정 (`/profile`)**: 프로필 사진 업로드, 200자 자기소개, 학년, 관심 키워드(최대 10개 태그) 등록.
+
+### 3.14 유저 차단 관리 (BlockManage)
+* **차단 사용자 목록 열람**: 차단한 유저의 프로필, 차단 일자 확인.
+* **원클릭 차단 해제**: 오해나 협의 후 차단을 손쉽게 해제할 수 있는 토글 액션.
+* **양방향 격리 필터**: 차단된 유저의 글과 댓글은 검색 및 추천에서 완벽히 필터링 처리.
+
+### 3.15 관리자 대시보드 (Admin)
+* **접근 통제**: `user.role === 'admin'` 권한을 가진 계정만 접근 가능.
+* **신고 처리 센터**: 접수된 게시글, 댓글, 사용자, 쪽지 신고 내역을 확인하고 증거 검토 후 조치 완료(`resolved`) 또는 기각(`dismissed`) 처리.
+* **불량 유저 제재**: 악성 유저를 즉시 `disabled` 상태로 격리(세션 쿠키 강제 파기)하거나 정지 해제.
+* **전체 사용자 및 그룹 현황 모니터링**: 가입자 목록 검색 및 부적절한 그룹 강제 해산.
+
+---
+
+## 4. 데이터베이스 스키마 모델링 (33개 테이블)
+
+Drizzle ORM(`drizzle/schema.ts`)에 타입 안전하게 정의된 33개 핵심 테이블 구조입니다.
 
 ```
-departments ─ 1:N → users (departmentId)
-users ─┬─ 1:1 → profiles
-       ├─ 1:N → posts, comments, likes, bookmarks, applications, messages
-       ├─ 1:N → emailVerifications, verificationTokens, refreshTokens, auditLog
-       ├─ 1:N → reports (reporterId), blocks (blockerId / blockedId)
-       ├─ 1:N → calendarEvents
-       └─ N:M → groups (via groupMembers + groupRoles)
-
-posts ─┬─ 1:N → comments, likes, bookmarks, applications, messages
-       └─ N:1 → groups (groupId, 모집 완료 시 자동 연동)
-
-groups ─┬─ 1:N → groupRoles, groupMembers, groupAnnouncements, groupChatMessages
-        └─ 1:N → calendarEvents (그룹 일정)
++---------------------------------------------------------------------------------------------------+
+| [사용자 및 인증 계층]                                                                              |
+|  - departments (외대 34개 학과 마스터) ──────── 1:N ──► users (사용자 정체성 및 FSM 상태)           |
+|  - users ──┬─ 1:1 ──► profiles (자기소개, 학년, 관심키워드)                                         |
+|            ├─ 1:N ──► emailVerifications (6자리 OTP 해시 및 만료시간)                              |
+|            ├─ 1:N ──► refreshTokens (토큰 회전 및 블랙리스트)                                     |
+|            └─ 1:N ──► auditLog (접속 IP, User-Agent 및 관리자 행위 감사로그)                       |
++---------------------------------------------------------------------------------------------------+
+| [모집 콘텐츠 및 인터랙션 계층]                                                                    |
+|  - posts (모집글, 동적 formSchema JSONB, hasInterview, groupId)                                    |
+|    ├── 1:N ──► comments (댓글 및 대댓글 계층)                                                     |
+|    ├── 1:N ──► likes (좋아요 반응)                                                                 |
+|    ├── 1:N ──► bookmarks (관심글 스크랩)                                                           |
+|    └── 1:N ──► applications (지원서 응답 answers JSONB, status: 대기중/1차합격/수락/거절)           |
+|  - messages (1:1 쪽지 대화 및 읽음 처리)                                                           |
+|  - reports (게시글/댓글/유저/쪽지 4종 신고)                                                         |
+|  - blocks (양방향 사용자 차단 맵)                                                                  |
+|  - notifications (지원결과/댓글/쪽지 실시간 푸시 알림)                                             |
++---------------------------------------------------------------------------------------------------+
+| [일정, 시간표 및 투두 계층]                                                                        |
+|  - calendarEvents (학사일정, 개인일정, 마감일정 통합) ── 1:N ──► eventRsvps (참석/불참/미정 투표)   |
+|  - userCalendarThemes (사용자별 카테고리 색상 커스텀)                                              |
+|  - calendarTodos (날짜별 할 일 목록 및 체크 상태)                                                   |
+|  - timetables (학교 주간 시간표) ── 1:N ──► timetableItems (과목명, 요일, 교시, 강의실)             |
++---------------------------------------------------------------------------------------------------+
+| [그룹 허브 및 협업 계층]                                                                          |
+|  - groups (자치 그룹 마스터, 고유 초대 키)                                                         |
+|    ├── 1:N ──► groupRoles (커스텀 직책 및 권한)                                                     |
+|    ├── 1:N ──► groupMembers (소속 멤버 매핑)                                                       |
+|    ├── 1:N ──► groupAnnouncements (핀 고정 공지사항)                                               |
+|    ├── 1:N ──► groupChatMessages (그룹 실시간 채팅)                                                |
+|    ├── 1:N ──► groupFiles (실제 파일 자료실 업로드)                                                |
+|    ├── 1:N ──► groupArchives (활동 아카이브 기록)                                                  |
+|    ├── 1:N ──► meetingTimePolls (시간 조율 투표) ── 1:N ──► meetingTimeResponses (드래그 가용시간) |
+|    └── 1:N ──► groupStudies (하위 소모임) ──┬── 1:N ──► groupStudyMembers (소모임 멤버)           |
+|                                             └── 1:N ──► groupStudyMinutes (스터디 회의록)         |
++---------------------------------------------------------------------------------------------------+
 ```
 
 ---
 
-## 백엔드 API
+## 5. 백엔드 API 구조 (15개 tRPC 라우터)
 
-`server/routers.ts`에 정의된 tRPC 라우터 — **13개 모듈**:
+`server/routers.ts`에 선언된 15개의 서브 라우터 모듈 목록입니다.
 
-* **`auth`**: 회원 정보 조회, 로그아웃, 탈퇴, 이메일 인증 코드 발송/검증, 온보딩 가입 완료
-* **`department`**: 전체 학과 마스터 리스트 조회
-* **`profile`**: 프로필 정보 관리 및 상세 조회
-* **`post`**: 모집글 CRUD, 추천, 키워드 자동완성, 좋아요/북마크 토글
-* **`comment`**: 모집글 댓글 및 대댓글 관리
-* **`application`**: 모집글 지원서 제출, 합격/거절 처리
-* **`calendar`**: 개인일정 관리 및 마이 캘린더 통합 데이터 추출
-* **`block`**: 유저 차단 및 차단 해제
-* **`report`**: 모집글/댓글/사용자/쪽지 신고 접수
-* **`group`**: 동아리/스터디 자치 그룹 내 지위, 일정, 공지, 채팅 기능 통합 제어
-* **`admin`**: 유저 정지/복구, 신고 내역 처리, 전체 회원 목록 관리
-* **`message`**: 1:1 쪽지 및 실시간 알림
-* **`upload`**: Cloudinary를 경유한 이미지 업로드
-
----
-
-## 핵심 기술 설계 및 구현 원리
-
-### 1. 풀스택 모놀리식 서빙(Serving) 및 빌드 파이프라인
-모집중은 단일 Node.js 프로세스가 프론트엔드 정적 파일 서빙과 백엔드 tRPC API 처리를 동시에 수행하는 **풀스택 모놀리스 아키텍처**를 적용했습니다.
-* **이중 빌드 파이프라인**: `Vite`를 사용해 React 19 소스코드를 경량화 빌드하여 `client/dist` 디렉터리에 출력하고, 백엔드는 `esbuild` 컴파일러를 가동해 TypeScript Express 코드를 단일 실행 파일(`dist/index.js`)로 압축 번들링합니다.
-* **통합 정적 서빙**: Express 서버 진입점에서 `express.static`을 사용하여 `client/dist` 폴더 내 정적 자산을 서빙하고, SPA 구조에 맞춘 History API Fallback 처리를 위해 알 수 없는 모든 와일드카드 경로(`*`) 요청을 `index.html`로 우회(Fallback)시킵니다. 이로써 **도메인 포트가 완전히 일치하여 CORS 문제를 원천 차단**합니다.
-
-### 2. 개발 및 프로덕션 환경의 CORS 및 포트 프록싱
-* **물리적 차이 통제**: 로컬 개발 시에는 빠른 HMR을 위해 Vite 개발 서버(`Port 5173`)와 Express 백엔드 서버(`Port 3000`)를 분리해 구동합니다.
-* **CORS 및 자격증명 통제**: 개발 단계에서 이종 포트 간에 HttpOnly 세션 쿠키가 온전히 교환되도록 Express 서버 단에서 `CORS_ALLOWED_ORIGINS` 파싱 및 `credentials: true` CORS 헤더 설정을 강제합니다. 클라이언트는 개발 및 배포 환경에 따라 API 엔드포인트 URL을 동적으로 분기 해석하는 로직을 가동합니다.
-
-### 3. 가입 상태 머신 (FSM) 및 OAuth 온보딩 분기
-사용자의 온보딩 라이프사이클을 통제하기 위해 데이터베이스의 유저 상태에 **유한 상태 머신(FSM) 모델**을 적용했습니다.
-* **Pending (가입 대기)**: 소셜 가입 성공 직후의 상태로, 읽기 전용 권한만 가지며 온보딩 가드 컴포넌트(`<OnboardingGuard>`)를 통해 메일 인증 화면으로만 강제 리다이렉트합니다.
-* **Verified (정회원)**: 이메일 검증 및 학적 기입을 통과하여 학적 무결성이 검증된 상태로, 플랫폼 내 모든 쓰기 동작과 커뮤니티 기능을 인가받습니다.
-* **Disabled (계정 제재)**: 신고 누적 등으로 관리자가 정지시킨 상태로, 쿠키가 자동 파기되고 로그인 시 사유 안내 화면으로 격리됩니다.
-* **보안 쿠키 세션**: 세션 정보 누출을 방지하기 위해 jose 라이브러리로 암호화 서명한 JWT를 `HttpOnly`, `Secure`, `SameSite` 쿠키에 탑재해 1년간 유지하며 XSS 공격을 무력화합니다.
-
-### 4. tRPC 기반 단일 레포지토리 타입 안정성 (Type Safety)
-* **REST의 한계 극복**: REST API처럼 스키마가 일치하지 않아 런타임에 에러가 발생할 위험을 방지하고, GraphQL 수준의 복잡한 런타임 쿼리 파서 오버헤드를 배제하기 위해 **tRPC**를 전면 설계하였습니다.
-* **동작 원리**: 백엔드 라우터 객체의 TypeScript 타입 정의(`export type AppRouter = typeof appRouter`)를 프론트엔드가 참조(Import)하여, API 파이프라인의 입출력 인자 타입을 컴파일 타임에 100% 동기화하고 에러를 빌드 시점에 잡아냅니다.
-
-### 5. PostgreSQL JSONB 기반 비정형 데이터 모델링
-모집 단위별로 유동적인 **'동적 질문 폼'**을 다루기 위해 하이브리드 데이터베이스 설계를 사용했습니다.
-* **JSONB의 강점**: 질문지 스펙(`posts.formSchema`)을 직렬화하여 JSONB 필드에 직접 저장함으로써, DDL 마이그레이션 변경 없이 기민하게 변경 요구사항에 대처합니다.
-* **조인 없는 쿼리**: 지원서 응답(`applications.answers`)을 문항 ID-답변 Value 해시 맵 구조의 JSONB 단일 필드로 기록하여 복잡한 `JOIN` 연산 및 자식 테이블 락(Lock) 경합 없이 단일 쿼리로 고속 조회를 보장합니다.
-
-### 6. 일정 겹침 방지 배치 알고리즘 (시간 복잡도 분석)
-학사일정, 개인일정, 그룹일정 등 다중 일정이 달력 한 날에 집중될 때 캘린더 화면 레이아웃 붕괴를 막기 위한 그리디 배치 알고리즘을 프론트엔드에 주입했습니다.
-* **작동 원리**:
-  1. **주간 필터링**: 현재 캘린더가 렌더링 중인 주차(토~일)에 겹치는 일정만 $N$개 선별합니다.
-  2. **우선순위 정렬**: '일정 기간이 긴 순(1순위) > 시작일이 빠른 순(2순위) > 제목 사전순(3순위)'으로 내림차순 정렬하여 수평적 연속성을 확보합니다 ($\mathcal{O}(N \log N)$).
-  3. **그리디 레인 배치**: 최대 3개의 수평 레인(`lanes`)을 정의하고, 정렬된 순서대로 일정을 돌려 겹치지 않는 가장 위쪽 레인을 탐색해 배치하고($\mathcal{O}(3N)$), 초과한 일정은 화면에서 가리고 카운트만 집계합니다.
-  4. **최종 시간 복잡도**: $\mathcal{O}(N \log N + 3N) \approx \mathcal{O}(N \log N)$으로 프론트엔드 스레드를 가로막지 않고 고속 연산됩니다.
-
-### 7. DB 물리적 FK 배제와 수동 연쇄 삭제(Cascade Delete) 트랜잭션
-* **이유**: 트래픽 폭주 시 인서트/업데이트 연산마다 DB 엔진 레벨의 FK 검사 락(Lock) 경합으로 인한 성능 저하를 방지하기 위해 물리적 외래키 제약조건을 배제하고 애플리케이션 레벨(Drizzle ORM)에서 관계를 직접 제어했습니다.
-* **참조 무결성 보완**: 참조 무결성 붕괴로 인한 고아 데이터를 막기 위해, 회원 탈퇴(`deleteUser`) 시 단일 데이터베이스 트랜잭션(`db.transaction`) 내에서 연관된 10여 개의 관계 테이블의 해당 유저 소유 데이터를 수동 연쇄 삭제(Cascade Delete)하는 원자적 가입 롤백 메커니즘을 수동 설계하여 무결성을 확보했습니다.
+1. **`auth`**: `me`, `logout`, `withdraw`, `completeRegistration` (실명/학번/학과 인증 등록)
+2. **`department`**: `list` (외대 34개 학과 마스터 데이터 반환)
+3. **`profile`**: `get`, `upsert`, `getUserProfile` (프로필 및 관심사 조회/수정)
+4. **`post`**: `list`, `getById`, `create`, `update`, `delete`, `toggleLike`, `toggleBookmark`, `recommended`
+5. **`comment`**: `listByPostId`, `create`, `delete` (댓글 및 대댓글 제어)
+6. **`application`**: `submit`, `listByPostId`, `updateStatus` (칸반 상태 제어), `myApplications`
+7. **`calendar`**: `getUnifiedEvents`, `createEvent`, `deleteEvent`, `getThemes`, `updateTheme`, `listTodos`, `createTodo`, `toggleTodo`, `deleteTodo`
+8. **`schedule`**: `getTimetable`, `saveTimetable`, `addCourse`, `deleteCourse` (학교 시간표 제어)
+9. **`group`**:
+   * 그룹 기본: `myGroups`, `create`, `join`, `getGroupDetail`, `leave`
+   * 공지/채팅: `addAnnouncement`, `sendChatMessage`
+   * 자료실: `listFiles`, `uploadFile`, `deleteFile`
+   * 소모임/회의록: `createStudy`, `listStudies`, `addStudyMinutes`, `deleteStudy`
+   * 시간 조율: `createTimePoll`, `getTimePollDetail`, `submitTimePollResponse`, `closeTimePoll`
+10. **`message`**: `getThreads`, `getThreadMessages`, `send` (상호 차단 검증 쪽지 전송)
+11. **`notification`**: `list`, `markAsRead`, `markAllAsRead` (알림 센터 제어)
+12. **`block`**: `list`, `toggle` (사용자 차단 및 해제)
+13. **`report`**: `create` (게시글, 댓글, 사용자, 쪽지 4종 신고 접수)
+14. **`upload`**: `image` (Cloudinary 경유 이미지 Base64 업로드 및 CDN 반환)
+15. **`admin`**: `getUsers`, `getReports`, `updateUserStatus`, `updateReportStatus` (관리자 제어)
 
 ---
 
-## 주요 트러블슈팅 사례
+## 6. 핵심 엔지니어링 및 문제 해결 사례
 
-### 1. NULL 값 UNIQUE 제약조건 충돌 극복 (조건부 부분 인덱스)
-* **문제 상황**: 1인 1계정 원칙을 위해 학번(`studentId`)과 이메일(`verifiedEmail`)에 UNIQUE 제약조건이 필요했으나, 카카오 로그인 직후 가입을 완료하기 전인 가입 대기(`pending`) 중인 유저들은 이 필드들이 임시 `NULL` 상태를 가집니다. 표준 UNIQUE 인덱스는 다수의 NULL 또한 중복으로 간주하여 충돌로 신규 가입을 마비시키는 장애가 있었습니다.
-* **해결 방법**: PostgreSQL의 **조건부 부분 인덱스(Conditional Partial Index)**를 활용해 오직 학번 및 이메일 값이 존재하는 경우(`IS NOT NULL`)에만 고유 제약조건 인덱스가 빌드되고 작동하도록 Drizzle schema에 아래와 같이 명세하여 무결성을 극복했습니다.
+### 6.1 부분 인덱스(Partial Index)를 통한 NULL 값 고유 제약조건 해결
+* **문제**: 1인 1계정 원칙을 위해 학번(`studentId`)과 인증메일(`verifiedEmail`)에 `UNIQUE` 제약이 필요하나, 카카오 최초 로그인 직후인 `pending` 유저는 해당 값이 `NULL`입니다. 표준 SQL UNIQUE는 여러 개의 `NULL` 또한 중복 충돌로 간주하여 신규 가입이 실패하는 버그가 발생했습니다.
+* **해결**: PostgreSQL의 **조건부 부분 인덱스(Partial Index)**를 활용하여 값이 존재하는 행에 대해서만 고유성을 검증하도록 적용했습니다.
   ```typescript
   uniqueIndex("users_studentId_unique")
     .on(table.studentId)
     .where(sql`"studentId" IS NOT NULL`)
   ```
 
-### 2. 이메일 전송 인프라 이중화 (SMTP 폴백 + Resend API)
-* **문제 상황**: 클라우드 Render 배포 환경에서 SMTP 인증 코드 발송 시 IPv6 주소 해석 오류나 해외 포트 대량 차단으로 이메일 발송이 잦은 타임아웃 실패를 겪었습니다.
-* **해결 방법**: SMTP 설정에 IPv4 우선 접속 설정을 추가하는 한편, 메일 발송이 에러로 실패하면 즉시 클라우드 전용 이메일 발송 인프라인 **Resend API**로 요청 경로를 자동 우회시키는 **이메일 발송 이중화(Failover) 시스템**을 구축하여 서비스 장애 내결함성을 극대화하였습니다.
+### 6.2 타이밍 공격(Timing Attack) 방어 및 상수 시간 비교
+* **문제**: 이메일 6자리 OTP 비교 시 일반 문자열 비교(`===`)를 사용하면, 첫 글자가 일치하지 않을 때 즉시 반환되므로 응답 소요 시간의 미세한 차이를 측정해 해시를 유추하는 타이밍 공격에 노출될 수 있습니다.
+* **해결**: DB에는 SHA-256 단방향 해시만 저장하며, 검증 시 Node.js 내장 모듈의 `crypto.timingSafeEqual`을 적용해 일치 여부와 무관하게 고정된 연산 시간을 강제하여 취약점을 방어했습니다.
 
-### 3. 타이밍 공격(Timing Attack) 방어 및 OTP 단방향 해시화
-* **문제 상황**: 이메일 OTP 코드가 DB에 평문으로 보관되면 보안 리스크가 크며, 코드 비교 검증 시 사용되는 Javascript 일반 문자열 비교(`==`)의 Short-circuit 특징 때문에 응답 소요 시간 차이를 해커가 측정하여 해시를 유추하는 타이밍 공격 위협이 존재했습니다.
-* **해결 방법**: 평문 코드는 메일로 쏘고 휘발시키며, DB에는 SHA-256으로 해시화한 값만 보관합니다. 검증 시에는 문자 불일치가 조기에 발견되어도 항상 일정한 상수 시간 비교 연산이 끝나도록 강제하는 Node.js의 `crypto.timingSafeEqual` 함수를 도입해 부채널 보안 취약점을 해결했습니다.
-  ```typescript
-  export function verifyCodeHash(plain: string, stored: string): boolean {
-    const a = Buffer.from(hashCode(plain), "hex");
-    const b = Buffer.from(stored, "hex");
-    if (a.length !== b.length) return false;
-    return crypto.timingSafeEqual(a, b);
-  }
-  ```
+### 6.3 이메일 인프라 무장애 이중화 (Failover)
+* **문제**: 클라우드(Render) 환경에서 외부 SMTP 서버 연결 시 IPv6 주소 해석 오류나 해외 포트 차단으로 메일 전송 타임아웃이 발생했습니다.
+* **해결**: 최신 HTTP REST 기반의 **Resend API를 1순위로 호출**하고, 전송 실패 시 **Nodemailer SMTP로 즉시 자동 우회(Failover)**하는 이중화 체계를 구축하여 안정적인 OTP 발송을 보장했습니다.
+
+### 6.4 캘린더 다중 일정 충돌 방지 배치 알고리즘
+* **문제**: 한 주 동안 학사일정, 개인일정, 그룹일정 등 수십 개 일정이 겹치면 달력 행의 높이가 비정상적으로 늘어나 레이아웃이 붕괴되었습니다.
+* **해결**: 주간 단위로 일정을 `기간이 긴 순(1순위) > 시작일이 빠른 순(2순위)`으로 정렬한 뒤, 최대 3개의 수평 레인(Lane)을 순회하며 빈자리에 차례로 집어넣고 초과 일정은 카운트만 집계하는 그리디 배치 알고리즘($\mathcal{O}(N \log N)$)을 적용했습니다.
 
 ---
 
-## 프론트엔드 페이지
+## 7. 로컬 실행 및 배포 가이드
 
-`client/src/App.tsx`에 정의:
+### 7.1 환경 변수 (`.env`) 설정
+```env
+DATABASE_URL=postgresql://username:password@localhost:5432/mojibjung
+JWT_SECRET=your-super-strong-jwt-secret-key-32-chars
+VITE_KAKAO_CLIENT_ID=your-kakao-rest-api-key
 
-| 경로 | 페이지 | 핵심 기능 |
-|---|---|---|
-| `/` | Home | 4슬라이드 자동 캐러셀 배너(외대 정보 및 실시간 학사일정 D-Day 자동 연동) + 카테고리별 최신글 + 개인화 추천 |
-| `/board` | Board | 24개/페이지, 카테고리 · 검색 · 정렬 · 상태 필터 |
-| `/post/new` | PostForm | 게시글 작성 — 커스텀 폼 빌더, verified 필요 |
-| `/post/:id` | PostDetail | 신청, 댓글, 쪽지, 차단·신고, 연동 그룹 일정 |
-| `/post/:id/edit` | PostForm | 게시글 수정 |
-| `/post/:id/manage` | **PostManage** | 지원자 통계(Recharts) + 1차합격·수락·거절 |
-| `/profile` | Profile | 학과 · 학년 · 소개 · 키워드, 가입 정보 읽기 전용 카드 |
-| `/user/:id` | **UserProfile** | 타 사용자 프로필 + 메시지 보내기 |
-| `/mypage` | MyPage | 내 글 / 신청 / 북마크 탭, 학교 인증 배지, 학과·학번 표시 |
-| `/calendar` | **CalendarPage** | 마이 캘린더 — 학사일정 + 공휴일 + 개인일정 + 모집 마감 통합 시각화 |
-| `/groups` | **GroupHub** | 그룹 운영 허브 — 일정·공지·채팅·고유 키 관리 |
-| `/messages` | Messages | 대화 목록 + 1:1 스레드 (차단 양방향 검증) |
-| `/blocks` | **BlockManage** | 차단 사용자 목록·해제 |
-| `/admin` | Admin | 관리자 — 사용자·신고 처리·계정 정지 |
-| `/onboarding/email` | OnboardingEmail | 카카오 가입 직후 — 학교 이메일 입력 |
-| `/onboarding/verify` | OnboardingVerify | 6자리 OTP 입력 (input-otp) |
-| `/onboarding/profile` | OnboardingProfile | 실명·학번·학과·입학년도 → 가입 완료 |
+# 메일 서비스 (Resend 우선, SMTP 백업)
+RESEND_API_KEY=re_xxxxxxxxxxxx
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
 
----
+# 미디어 업로드 (Cloudinary)
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
 
-## 주요 기능 및 구현 원리
-
-### 1. Kakao OAuth 로그인
-* **구현원리**: Kakao 인가 코드를 백엔드로 받아 토큰 API로 전달하고 사용자 프로필 정보(OpenID)를 조회합니다. 이를 `users` 테이블에 `upsertUser` 처리하고 가입 상태에 따라 온보딩 단계 리다이렉트 흐름을 분기하며, 비밀키로 서명한 JWT를 `HttpOnly` 쿠키에 설정해 1년간 유지하여 세션을 보장합니다.
-
-### 2. 학교 이메일 인증
-* **구현원리**: `@hufs.ac.kr` 도메인 검증 후 난수 OTP 코드를 생성, 평문 코드는 메일로 쏘고 DB에는 SHA-256 해시값으로 보관합니다. 비교 시 타이밍 공격 방어를 위해 `crypto.timingSafeEqual` 상수 시간 비교를 사용하며, SMTP 전송 차단을 피하기 위해 Nodemailer 실패 시 Resend API로 자동 Failover 이중화를 적용했습니다.
-
-### 3. 회원 탈퇴
-* **구현원리**: 데이터 정합성을 유지하기 위해 단일 DB 트랜잭션 내에서 `profiles`, `comments`, `likes`, `bookmarks`, `applications`, `messages`, `calendarEvents`, `groupMembers` 등의 종속 유저 데이터를 수동 연쇄 삭제(Cascade Delete)하고, 최종적으로 `users`의 마스터 레코드를 지운 후 브라우저 내 세션 쿠키를 즉시 만료시킵니다.
-
-### 4. 프로필 및 관심사 관리
-* **구현원리**: 학과 정규화를 위해 DB 마스터 학과(34개) 시드를 시드 적용(`pnpm db:seed`)하고 `users.departmentId` 외래키로 매핑합니다. 학년, 소개글 및 관심 키워드를 문자열 JSON 배열로 profiles에 `upsert`하여 실시간 관리합니다.
-
-### 5. 모집글 CRUD + 커스텀 폼 빌더
-* **구현원리**: 가변 질문 형식의 문항 구조를 JSON 객체 배열로 직렬화하여 PostgreSQL `JSONB` 컬럼(`posts.formSchema`)에 통째로 저장합니다. 렌더링 시 React 상에서 Zod 유효성 검사를 거친 다이내믹 컴포넌트 매핑을 가동해 주관식 또는 객관식 입력창으로 자동 렌더링합니다.
-
-### 6. 신청 시스템 (면접 단계 포함)
-* **구현원리**: 중복 지원을 막기 위해 `applications` 테이블에 `(postId, applicantId)` 복합 UNIQUE 제약조건을 강제했습니다. 전형 단계를 `대기중` -> `1차합격` -> `수락` -> `거절`로 관리하고, 1차 서류 합격자 처리 시 면접 시간/장소를 `interviewDetails`에 보관하여 지원자 본인에게만 1:1로 공개합니다.
-
-### 7. 그룹 시스템 (소통 허브)
-* **구현원리**: 최종 합격 시 `autoJoinGroupMember` 트랜잭션을 실행해 단체 멤버로 자동 가입시킵니다. 초대 키(`accessKey`)를 통한 단체 가입이 가능하며, `groupRoles` 테이블에 세부 권한 스위치를 정의해 등급별 일정/공지/채팅 권한을 tRPC API 단에서 격리 및 제어합니다.
-
-### 8. 마이 캘린더
-* **구현원리**: `calendar.list`에서 개인일정, 공개일정, 그룹일정, 지원한 글 마감일을 병합해 하나의 Unified 배열로 반환합니다. 다중 일정이 한 주에 몰릴 때 화면 깨짐을 막고자 프론트엔드에 **3단계 그리디 구간 분할 알고리즘**을 탑재하여 수평 바 형태로 늘리고 레인을 분배합니다.
-
-### 9. 개인화 추천
-* **구현원리**: 유저 프로필 키워드와 모집글 태그 키워드 간의 **교집합 원소 개수**를 계산하여 정렬 피드로 추천 처리하고, 차단한 저자의 글은 조건문(`notInArray`)을 통해 데이터베이스 스크리닝 단계에서 원천 제외시킵니다.
-
-### 10. 쪽지(1:1 메시지)
-* **구현원리**: 쪽지 목록 조회 및 전송 시 양방향 차단 목록(`blocks`)을 참조해 관계가 감지되면 API 레벨에서 전송을 차단합니다. 쪽지방 진입 시 해당방 내 상대방이 보낸 미독 메시지들의 읽음 상태(`isRead = true`)를 데이터베이스에 즉시 동기화합니다.
-
-### 11. 신고·차단·관리자 처리
-* **구현원리**: 부적절 콘텐츠 신고 내역을 통합 `reports` 테이블에 기록하고 관리자 대시보드(`adminProcedure`)에서 반려 또는 제재 처리합니다. 유저 정지 시 JWT 세션을 즉시 무효화하고 차단한 사용자의 데이터는 쿼리 조건절에 `notInArray`를 강제해 영구적으로 노출을 차단합니다.
-
-### 12. 지원자 통계 대시보드
-* **구현원리**: 제출된 `applications.answers` JSONB 필드를 읽어와 문항별 응답 분포율을 추출하는 백엔드 집계 파이프라인을 구동하고, 프론트엔드에서 **Recharts** 라이브러리의 원형 차트(`PieChart`) 및 막대 차트(`BarChart`) 컴포넌트에 매핑해 그래프로 시각화합니다.
-
-### 13. 관리자 기능
-* **구현원리**: `adminProcedure` 미들웨어를 거쳐 검증된 관리자 계정에 한해서만 회원 강퇴, 정지/복구, 신고 내역 처리 및 메일 발송 장치 자격 진단 쿼리(`getSmtpStatus`)를 실행할 수 있도록 라우터를 통제합니다.
-
-### 14. 검증 (3중 방어)
-* **구현원리**: 1차로 브라우저에서 `React Hook Form`과 `Zod` 스키마 결합을 통해 폼 유효성 오류를 차단하고, 2차로 tRPC 백엔드 라우터 진입점에 `Zod` 파라미터 유효성 검사 미들웨어를 두었으며, 3차로 데이터베이스의 `UNIQUE`, `NOT NULL`, `CHECK` 제약조건으로 최종 정합성을 강제하는 다계층 검증을 수행합니다.
-
----
-
-## 🧑‍💻 기여 부분 변수 및 사용법 정의 (subin 개발 영역)
-
-본 섹션은 팀원 `subin`이 단독/주도적으로 개발 및 수정한 기능(마이 캘린더, 그룹 시스템, 면접 및 자동 가입 전형, 로고 개선 등)에 관련된 데이터베이스 변수(스키마 컬럼), 시스템 상수 및 API 입출력 매개변수 정의의 **사용처**와 **사용법**을 구체적으로 다룹니다.
-
-### 1. 데이터베이스 스키마 변수 (drizzle/schema.ts)
-
-#### ① 캘린더 일정 테이블 (`calendarEvents`)
-개인 일정 및 학교 학사일정, 공휴일, 연동 그룹 일정을 관리하기 위해 사용되는 변수입니다.
-- **`userId`** (Integer, Nullable)
-  - **사용처**: `server/db.ts` (일정 필터 쿼리), `client/src/pages/CalendarPage.tsx` (개인/공식 일정 분기 렌더링)
-  - **사용법**: 개인 일정을 추가할 때는 로그인한 유저의 고유 `id`를 지정해 저장하고, 전체 유저에게 보여야 하는 학사일정 및 법정 공휴일 등록 시에는 `null` 값으로 입력하여 전역 조회가 가능하도록 합니다.
-- **`groupId`** (Integer, Nullable)
-  - **사용처**: `server/db.ts` (그룹 일정 조회), `client/src/pages/CalendarPage.tsx` (캘린더 내 그룹별 식별 색상 매핑)
-  - **사용법**: 특정 동아리, 학회, 스터디 그룹의 캘린더와 연동된 일정일 경우 해당 그룹의 고유 식별자 ID(`groups.id`)를 매핑하여 저장합니다.
-- **`title`** (Varchar, Not Null)
-  - **사용처**: `client/src/pages/CalendarPage.tsx` (캘린더 일정 바(Bar) 텍스트 및 상세 모달 헤더)
-  - **사용법**: 사용자가 일정을 등록할 때 입력한 한글/영문 제목 문자열(최대 200자)을 그대로 저장합니다.
-- **`description`** (Text, Nullable)
-  - **사용처**: `client/src/pages/CalendarPage.tsx` (일정 클릭 시 나타나는 우측 패널/팝업 상세 정보 본문)
-  - **사용법**: 일정의 구체적인 내용, 링크, 참고사항 등을 문자열 텍스트로 자유롭게 기록합니다.
-- **`startDate`** / **`endDate`** (Timestamp, Not Null)
-  - **사용처**: `server/db.ts` (특정 월/주별 일정 범위 조회 쿼리), `client/src/pages/CalendarPage.tsx` (달력 그리드 상에 일정 바를 가로로 이어 그리는 수평 그리드 렌더링 알고리즘)
-  - **사용법**: 일정의 시작 일시와 종료 일시를 설정합니다. 다중 날짜에 걸쳐 있는 일정(Multi-day)인 경우 수평 바 형태로 늘어나 시각화됩니다.
-- **`category`** (Enum, Not Null)
-  - **사용처**: `client/src/pages/CalendarPage.tsx` (일정 종류별 범례 표시 및 색상 테마 분류)
-  - **사용법**: 일정이 어느 범주에 속하는지 나타내며, `academic`(학사일정), `personal`(개인 일정), `holiday`(공휴일), `group`(그룹 일정) 중 하나의 값을 지정합니다.
-- **`isPrivate`** (Integer, Not Null, Default `0`)
-  - **사용처**: `server/db.ts` (비밀일정 인가 권한 체크), `client/src/pages/CalendarPage.tsx` (자물쇠 아이콘 시각화)
-  - **사용법**: 그룹 일정 등록 시 `1`로 설정하면 일반 멤버에게 노출되지 않고, 비밀 일정 조회 권한(`canViewPrivateEvent`)이 부여된 운영진에게만 보이도록 차단 제어합니다.
-
-#### ② 그룹 시스템 및 소통 허브 관련 테이블
-- **`groups` (그룹 마스터 테이블)**
-  - **`name`** (Varchar, Not Null)
-    - **사용처**: `client/src/pages/GroupHub.tsx` (그룹 메인 화면 타이틀), `client/src/pages/MyPage.tsx` (가입 단체 목록)
-    - **사용법**: 생성할 그룹(동아리/학회/스터디)의 공식 명칭을 문자열로 저장합니다.
-  - **`leaderId`** (Integer, Not Null)
-    - **사용처**: `server/db.ts` (그룹 양도/해체 권한 검증), `client/src/pages/GroupHub.tsx` (그룹 설정 및 멤버 강퇴 UI 노출 기준)
-    - **사용법**: 그룹을 처음 개설한 리더의 고유 ID(`users.id`)를 저장하여 모든 관리 권한의 최상위 검증 키로 활용합니다.
-  - **`accessKey`** (Varchar, Unique)
-    - **사용처**: `server/routers.ts` (그룹 입장 코드 가입 검증), `client/src/pages/GroupHub.tsx` (초대용 입장 코드 표시)
-    - **사용법**: 외부 사용자가 그룹에 직접 가입할 때 필요한 비밀 입장 키입니다. 보안을 위해 `XXXX-XXXX-XXXX` 포맷의 UUID 혹은 난수 문자열로 생성 및 저장합니다.
-
-- **`groupRoles` (지위 및 세부 권한 설정)**
-  - **`groupId`** (Integer, Not Null)
-    - **사용처**: `server/db.ts` (해당 그룹에 정의된 역할들만 로드)
-    - **사용법**: 생성하려는 권한 등급(지위)이 귀속되는 대상 그룹 ID(`groups.id`)를 참조합니다.
-  - **`name`** (Varchar, Not Null)
-    - **사용처**: `client/src/pages/GroupHub.tsx` (멤버 관리 화면의 지위 목록 및 멤버 카드 내 태그)
-    - **사용법**: "회장", "운영진", "기획팀장" 등 해당 그룹의 특성에 맞게 커스텀 정의된 직책명을 저장합니다.
-  - **`canManageSchedule`** / **`canManageNotice`** / **`canViewPrivateEvent`** (Integer, Default `0`)
-    - **사용처**: `server/routers.ts` (그룹 일정 추가, 그룹 공지 게재, 비밀일정 조회 시 API 접근 인가 절차)
-    - **사용법**: `0`(불가능) 또는 `1`(가능) 값으로 세부 권한을 키고 끕니다. API 요청 시 사용자가 가진 지위(`roleId`)의 권한 값과 대조하여 인가 처리를 제어합니다.
-
-- **`groupMembers` (소속 멤버 매핑 테이블)**
-  - **`userId`** (Integer, Not Null) / **`groupId`** (Integer, Not Null)
-    - **사용처**: `server/db.ts` (특정 사용자가 그룹원인지 여부 및 가입 목록 파악)
-    - **사용법**: 사용자 ID와 가입한 그룹 ID를 한 쌍으로 묶어 가입 관계를 맺습니다.
-  - **`roleId`** (Integer, Nullable)
-    - **사용처**: `server/routers.ts` (사용자의 권한 제어 시 `group_roles` 테이블과 조인)
-    - **사용법**: 멤버에게 할당할 특정 지위 ID(`group_roles.id`)를 연결합니다. 값이 비어있으면(NULL) 권한이 없는 일반 멤버로 취급됩니다.
-
-- **`groupAnnouncements` (그룹 내 공지사항)**
-  - **`groupId`** (Integer, Not Null) / **`authorId`** (Integer, Not Null)
-    - **사용처**: `client/src/pages/GroupHub.tsx` (그룹 공지사항 탭 피드 및 작성자 정보 출력)
-    - **사용법**: 공지사항이 게재될 그룹 ID와 작성 주체인 운영진의 고유 회원 ID를 각각 매핑합니다.
-  - **`title`** / **`content`** (Varchar / Text)
-    - **사용처**: `client/src/pages/GroupHub.tsx` (공지 리스트 개별 아코디언 컴포넌트 렌더링)
-    - **사용법**: 공지사항 글의 제목과 본문 내용을 마크다운 혹은 문자열로 입력받아 그대로 저장합니다.
-
-- **`groupChatMessages` (그룹 소통방 메시지)**
-  - **`groupId`** (Integer, Not Null) / **`senderId`** (Integer, Not Null)
-    - **사용처**: `client/src/pages/GroupHub.tsx` (그룹 대화방 탭의 메시지 스레딩 및 아바타 출력)
-    - **사용법**: 메시지가 발송된 단톡방이 소속된 그룹 ID와 보낸 이의 회원 ID를 연결합니다.
-  - **`content`** (Text, Not Null)
-    - **사용처**: `client/src/pages/GroupHub.tsx` (대화창 말풍선)
-    - **사용법**: 사용자가 입력하여 보낸 채팅 텍스트 본문 문자열을 그대로 저장합니다.
-
-#### ③ 모집 게시글 및 신청서 추가 컬럼
-- **`posts.groupId`** (Integer, Nullable)
-  - **사용처**: `server/db.ts` (최종 합격 수락 완료 시 자동 가입 연동 로직), `client/src/pages/PostDetail.tsx` (합격 시 그룹 허브 바로가기 버튼 제공)
-  - **사용법**: 게시글 작성자가 모집글을 올릴 때, 모집이 성공적으로 끝나면 생성/가입될 자신의 그룹 ID를 미리 연동해 둡니다.
-- **`posts.hasInterview`** (Integer, Default `0`)
-  - **사용처**: `client/src/pages/PostForm.tsx` (면접 여부 스위치 버튼), `client/src/pages/PostDetail.tsx` (전형 안내 헤더 배지)
-  - **사용법**: 해당 모집 절차에 오프라인/온라인 면접이 포함되어 있는지 여부를 구분합니다. `1`로 설정되면 지원서 양식과 관리 페이지에 면접 관련 UI 기능이 활성화됩니다.
-- **`applications.interviewDetails`** (Text, Nullable)
-  - **사용처**: `client/src/pages/PostManage.tsx` (지원자 관리 보드에서 면접 대상자 배정), `client/src/pages/MyPage.tsx` (지원한 유저가 본인의 면접 시간 및 장소 확인)
-  - **사용법**: 작성자가 서류 합격자 상태를 `1차합격`으로 변경할 때 작성하는 시간 약속, 면접 장소, 준비물 등의 상세 정보를 텍스트로 보관하여 지원자에게 1:1로만 보여줍니다.
-
----
-
-### 2. tRPC API 라우터 변수 (server/routers.ts)
-
-`subin`이 단독으로 신규 작성하거나 수정한 API 엔드포인트의 입력 값 및 사용처, 사용법 정보입니다.
-
-#### ① `calendar` 라우터 (달력 시스템)
-* **`list`**
-  * **사용처**: `client/src/pages/CalendarPage.tsx` (마이 캘린더 페이지 첫 진입 시 데이터 로딩)
-  * **사용법**: 별도의 입력(Input) 변수가 필요하지 않으며, 현재 세션의 사용자 고유 ID에 기반하여 개인 일정, 소속 그룹 일정, 공식 학사일정 및 북마크 해놓은 모집 글의 마감기한(Deadline)을 자동으로 취합한 종합 배열 목록을 반환합니다.
-* **`create`**
-  * **사용처**: `client/src/pages/CalendarPage.tsx` (캘린더 날짜 클릭 후 우측 사이드바 '새 일정 추가' 폼 제출)
-  * **사용법**: 생성할 일정의 제목(`title`), 상세내용(`description`), 시작시각(`startDate`), 종료시각(`endDate`), 범류(`category`), 비밀일정 여부(`isPrivate`) 변수를 Zod 객체 형태로 전달받아 DB에 삽입합니다.
-* **`update`** / **`delete`**
-  * **사용처**: `client/src/pages/CalendarPage.tsx` (등록되어 있는 기존 일정을 클릭한 후 수정/삭제 액션 실행)
-  * **사용법**: 수정 시에는 대상 일정 ID(`id`)와 변경할 필드 정보가 담긴 `data` 객체를, 삭제 시에는 대상 일정 ID(`id`) 변수를 입력받아 본인 소유의 일정인지를 검증 후 데이터베이스에 반영합니다.
-
-#### ② `group` 라우터 (그룹/단체 관리 시스템)
-* **`create`**
-  * **사용처**: `client/src/pages/Admin.tsx` 또는 `client/src/pages/GroupHub.tsx` (새로운 그룹/동아리 생성 폼)
-  * **사용법**: 단체의 이름(`name`)과 입장 시 필요한 비밀 코드(`accessKey`) 변수를 입력받아 groups 테이블에 레코드를 삽입하고 생성자를 리더로 자동 가입시킵니다.
-* **`joinGroupWithKey`**
-  * **사용처**: `client/src/pages/GroupHub.tsx` (입장 코드를 통한 신규 그룹 가입 팝업)
-  * **사용법**: 사용자가 입력한 입장 키(`accessKey`)를 인풋으로 받아 DB의 `groups.accessKey`와 비교한 뒤, 일치하면 해당 그룹의 일반 멤버 레코드(`groupMembers`)를 자동으로 생성하여 가입 완료 처리합니다.
-* **`getGroupMembers`**
-  * **사용처**: `client/src/pages/GroupHub.tsx` (그룹원 명부 탭 및 지위 변경 다이얼로그)
-  * **사용법**: 조회 대상 그룹 ID(`groupId`)를 입력받아, 그룹에 속한 멤버의 정보(`users.name`, `users.avatarUrl`) 및 세부 지위 권한을 조인하여 목록으로 반환합니다.
-* **`removeGroupMember`**
-  * **사용처**: `client/src/pages/GroupHub.tsx` (멤버 리스트의 '강퇴' 또는 본인의 '그룹 탈퇴' 버튼 클릭 시)
-  * **사용법**: 대상 그룹 ID(`groupId`)와 방출할 유저 ID(`userId`)를 입력받아 리더 권한 검증 절차를 거친 뒤 멤버 매핑 행을 완전히 삭제합니다.
-* **`assignMemberRole`**
-  * **사용처**: `client/src/pages/GroupHub.tsx` (멤버 상세 프로필의 '지위 설정' 드롭다운 메뉴 변경 시)
-  * **사용법**: 그룹 ID(`groupId`), 권한을 변경할 대상 유저 ID(`userId`), 새로 부여할 직책 ID(`roleId`) 변수를 전달받아 해당 멤버의 권한 외래키를 업데이트합니다.
-
-#### ③ `groupRole` 라우터 (역할 및 지위 권한 관리)
-* **`createGroupRole`**
-  * **사용처**: `client/src/pages/GroupHub.tsx` (그룹 설정 탭 -> '새 지위 등급 생성' 다이얼로그)
-  * **사용법**: 직책을 등록할 그룹 ID(`groupId`), 직책명(`name`), 일정 관리 권한 스위치(`canManageSchedule`), 공지 관리 권한 스위치(`canManageNotice`), 비밀 일정 열람 권한 스위치(`canViewPrivateEvent`) 변수를 받아 새로운 역할 등급을 개설합니다.
-
-#### ④ `groupAnnouncement` 라우터 (공지사항 시스템)
-* **`create`**
-  * **사용처**: `client/src/pages/GroupHub.tsx` (그룹 공지사항 탭 -> '새 공지 작성' 폼 제출)
-  * **사용법**: 공지를 등록할 그룹 ID(`groupId`), 제목(`title`), 본문 내용(`content`) 변수를 인풋으로 받아, 작성 권한을 체크한 뒤 공지사항 데이터베이스 행을 삽입합니다.
-
-#### ⑤ `groupChatMessage` 라우터 (그룹 실시간 소통망)
-* **`create`**
-  * **사용처**: `client/src/pages/GroupHub.tsx` (그룹 채팅창 탭 -> 메시지 입력란 엔터/전송 버튼 클릭)
-  * **사용법**: 메시지를 보낼 소속 그룹 ID(`groupId`)와 메시지 본문(`content`) 문자열을 입력받아 채팅 스레드에 추가 저장하고 반환합니다.
-
----
-
-## 시작하기
-
-### 사전 요구사항
-- Node.js 20+
-- pnpm 10.4.1+
-- PostgreSQL 데이터베이스
-
-### 설치 및 실행
-```bash
-pnpm install          # 의존성 설치
-pnpm run db:push      # DB 동기화
-pnpm run dev          # 개발 서버(프론트+백) 실행
+NODE_ENV=development
+PORT=3000
 ```
 
----
-
-## 👨‍💻 팀원 개발 가이드 (Quick Start)
-
-팀원들이 기능을 추가할 때 참고할 기본적인 흐름입니다.
-
-### 1. 데이터베이스 스키마 수정
-1. `drizzle/schema.ts`에서 테이블 또는 필드를 수정합니다.
-2. 터미널에서 `pnpm run db:push`를 실행하여 실제 DB에 반영합니다.
-
-### 2. 백엔드 API (tRPC) 추가
-1. `server/routers/` 내의 파일에서 로직을 작성합니다.
-2. `server/_core/routers.ts`에 해당 라우터를 등록합니다.
-
-### 3. 프론트엔드 연결
-1. `client/src/pages/`에 새로운 페이지를 만들거나 기존 페이지를 수정합니다.
-2. tRPC 클라이언트를 사용하여 데이터를 호출합니다:
-   ```typescript
-   const { data } = trpc.post.get.useQuery({ id: 1 });
-   ```
-
----
-
-## 환경 변수
-
-| 변수 | 필수 시점 | 설명 |
-|---|---|---|
-| `DATABASE_URL` | 항상 | PostgreSQL 연결 문자열 |
-| `JWT_SECRET` | **운영 필수** | JWT 서명 비밀키. 미설정 시 운영 부트업 단계에서 서버 종료. 권장: `openssl rand -base64 48` |
-| `VITE_KAKAO_CLIENT_ID` | 항상 | Kakao Developers REST API 키 |
-| `RESEND_API_KEY` / `RESEND_FROM` | **운영 권장** | Resend 이메일 발송 (SMTP 차단 회피). 설정 시 SMTP 보다 우선 사용 |
-| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` / `SMTP_SECURE` | **운영 필수** | 학교 이메일 인증 코드 발송 (Resend 폴백). 미설정 시 공식 발송 헬퍼 작동 |
-| `CORS_ALLOWED_ORIGINS` | 외부 도메인 호출 시 | 쉼표 구분. 비어 있으면 same-origin 만 허용 |
-| `VITE_CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | 이미지 업로드 사용 시 | Cloudinary 자격증명 |
-| `OWNER_OPEN_ID` | 선택 | 이 카카오 openId 사용자는 자동 admin 권한 부여 |
-
-자세한 예시는 [.env.example](.env.example) 참조.
-
----
-
-## 데이터베이스 마이그레이션 / 시드 적용
-
-### 마이그레이션 (DDL)
-`drizzle/schema.ts` 변경분으로 SQL 자동 생성 + 적용:
-
+### 7.2 설치 및 개발 서버 실행
 ```bash
-pnpm run db:push       # = drizzle-kit generate && drizzle-kit migrate
+# 1. 패키지 설치
+pnpm install
+
+# 2. 데이터베이스 스키마 푸시 및 외대 학과 시드 적용
+pnpm db:push
+pnpm db:seed
+
+# 3. 풀스택 개발 서버 동시 구동 (Client: 5173, Server: 3000)
+pnpm dev
 ```
 
-> 수동 SQL 참고: 마이그레이션은 **0004 에서 동결**되어 있어, 이후 스키마 변경은 `_archive/*_REFERENCE.sql` 로 수동 적용합니다 (drizzle-kit generate 사용 시 메타 불일치로 깨짐). 인증 재설계 시안 [`0005_auth_redesign_REFERENCE.sql`](drizzle/_archive/0005_auth_redesign_REFERENCE.sql) 참조.
-
-### 시드 (데이터)
-학과 마스터 같은 정적 데이터 적용:
-
+### 7.3 프로덕션 빌드 및 배포
 ```bash
-pnpm run db:seed       # drizzle/seeds/*.sql 을 알파벳 순서로 적용 (idempotent)
+# 클라이언트 Vite 번들링 + 서버 esbuild 단일 파일 컴파일
+pnpm build
+
+# 프로덕션 실행
+pnpm start
 ```
-
-> [!NOTE]
-> `pnpm run db:seed` 실행 시 학과 마스터 데이터(`001_departments.sql`)와 2026학년도 학사일정 및 공휴일 데이터(`002_calendar_events.sql`)가 순서대로 자동으로 데이터베이스에 주입됩니다.
-
----
-
-## 테스트
-
-```bash
-pnpm run test       # Vitest 기반 통합 테스트 실행
-```
-
----
-
-## 배포
-
-- **Render.com**을 통해 자동 배포됩니다.
-- 상세 설정은 `render.yaml` 파일을 참조하세요.
-
----
-
-## 프로덕션 배포 전 체크리스트
-
-### 환경변수 (P0 — 누락 시 부트업 실패 또는 기능 마비)
-- [ ] `DATABASE_URL` — PostgreSQL 연결
-- [ ] `JWT_SECRET` — 운영 미설정 시 서버 부트업이 throw. `openssl rand -base64 48` 권장
-- [ ] `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` — 인증 코드 실제 발송
-- [ ] `CORS_ALLOWED_ORIGINS` — 외부 도메인에서 호출하는 경우. same-origin 배포면 생략 가능
-
-### 데이터베이스
-- [ ] `pnpm run db:push` 실행 — `drizzle/schema.ts` 기반 DDL 동기화
-- [ ] `pnpm run db:seed` 실행 — 학과 마스터 및 학사일정/공휴일 시드 (회원가입 및 캘린더/배너 D-Day 연동에 필수)
-
-### 코드 상태 (완료)
-- [x] `@hufs.ac.kr` 이메일 도메인 강제 검증
-- [x] 6자리 코드 SHA-256 해시 저장 + attempts ≤ 10 (현재 정책)
-- [x] Rate limit — 이메일/IP 윈도우
-- [x] 검증 토큰 1회용 (JWT 30분 + DB consumedAt + userId 일치 검증)
-- [x] 가입 상태 머신 (`pending → verified → disabled`) + 권한 미들웨어 4단계
-- [x] OAuth 콜백 → onboarding 자동 리다이렉트 + DISABLED 차단 UI
-- [x] CORS 화이트리스트 빌더 + 부트업 검증 로그
-- [x] AuditLog 적재 (LOGIN / EMAIL_VERIFY / REGISTER / ADMIN_DELETE 등)
-- [x] `admin.*` 라우터 `adminProcedure` 로 일관화
-- [x] Resend API 통합 — SMTP 차단 환경 회피
-- [x] 그룹 시스템 (소통 허브 · 일정 연동 · 고유 키)
-- [x] 신고·차단·관리자 처리 흐름
-- [x] 회원 탈퇴
-
-### 후속 권장 (P1)
-- [ ] **Access(30분) / Refresh(14일) 토큰 분리 + 회전** — 현재 단일 1년 JWT (refreshTokens 테이블 존재, 미사용)
-- [ ] **MAX_ATTEMPTS 정책 재검토** — 5 → 10 으로 완화된 상태 (UX vs 보안 trade-off)
-- [ ] **운영 환경 환경변수 점검** — JWT_SECRET / SMTP / Resend / CORS / DB
-- [ ] **카카오 collaborator·콜백 도메인** — 운영 도메인 등록 확인
-- [ ] AuditLog 조회 UI — 데이터는 쌓이지만 관리자 페이지에 미표시
