@@ -32,6 +32,7 @@ import {
   toggleLike,
   toggleBookmark,
   getBookmarkedPosts,
+  getLikedPosts,
   createReport,
   listReports,
   updateReportStatus,
@@ -726,6 +727,11 @@ export const appRouter = router({
     // 내가 북마크한 글 목록 조회
     myBookmarks: protectedProcedure.query(async ({ ctx }) => {
       return getBookmarkedPosts(ctx.user.id);
+    }),
+
+    // 내가 좋아요한 글 목록 조회
+    myLikedPosts: protectedProcedure.query(async ({ ctx }) => {
+      return getLikedPosts(ctx.user.id);
     }),
 
     // 특정 작성자의 글 목록 조회

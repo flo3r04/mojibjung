@@ -52,7 +52,7 @@ const CATEGORY_STYLES: Record<string, string> = {
   스터디: "bg-pink-100 text-pink-700",
 };
 
-type Tab = "posts" | "applications" | "bookmarks";
+type Tab = "posts" | "applications" | "bookmarks" | "likes";
 
 export default function MyPage() {
   const { user, isAuthenticated, isVerified } = useAuth();
@@ -85,6 +85,11 @@ export default function MyPage() {
       enabled: isAuthenticated,
     });
 
+  const { data: myLikedPosts, isLoading: likedPostsLoading } =
+    trpc.post.myLikedPosts.useQuery(undefined, {
+      enabled: isAuthenticated,
+    });
+
   const utils = trpc.useUtils();
 
 
@@ -106,6 +111,26 @@ export default function MyPage() {
       }
     },
     onError: (err, variables, context) => {
+      toast.dismiss(context?.toastId);
+      toast.error(err.message || "오류가 발생했습니다.");
+    },
+  });
+
+  const toggleLikeMutation = trpc.post.toggleLike.useMutation({
+    onMutate: () => {
+      const toastId = toast.loading("처리 중...");
+      return { toastId };
+    },
+    onSuccess: (data, variables, context) => {
+      toast.dismiss(context?.toastId);
+      utils.post.myLikedPosts.invalidate();
+      utils.post.get.invalidate({ id: variables.postId });
+      utils.post.list.invalidate();
+      toast.success(
+        data.liked ? "좋아요를 눌렀습니다." : "좋아요를 취소했습니다."
+      );
+    },
+    onError: (err, _variables, context) => {
       toast.dismiss(context?.toastId);
       toast.error(err.message || "오류가 발생했습니다.");
     },
@@ -156,6 +181,22 @@ export default function MyPage() {
             title="북마크 해제"
           >
             <Bookmark className="w-4 h-4 fill-current" />
+          </button>
+        )}
+
+        {activeTab === "likes" && (
+          <button
+            type="button"
+            onClick={e => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleLikeMutation.mutate({ postId: post.id });
+            }}
+            className="absolute top-3 right-12 w-9 h-9 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center border-2 border-white shadow-sm hover:bg-pink-200 hover:scale-110 transition-all z-[100] cursor-pointer"
+            title="좋아요 취소"
+            aria-label={`${post.title} 좋아요 취소`}
+          >
+            <Heart className="w-4 h-4 fill-current" />
           </button>
         )}
 
@@ -327,7 +368,7 @@ export default function MyPage() {
           </div>
         </div>
 
-        <div className="flex gap-1 bg-muted/50 rounded-2xl p-1.5 mb-8 w-fit border border-border/50">
+        <div className="flex gap-1 bg-muted/50 rounded-2xl p-1.5 mb-8 w-fit max-w-full overflow-x-auto border border-border/50">
           {[
             {
               id: "posts",
@@ -348,11 +389,18 @@ export default function MyPage() {
               icon: Bookmark,
               count: myBookmarks?.length,
             },
+            {
+              id: "likes",
+              label: "좋아요한 글",
+              icon: Heart,
+              count: myLikedPosts?.length,
+            },
           ].map(tab => (
             <button
               key={tab.id}
+              type="button"
               onClick={() => setActiveTab(tab.id as Tab)}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+              className={`flex shrink-0 items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
                 activeTab === tab.id
                   ? "bg-card text-foreground shadow-md ring-1 ring-black/5"
                   : "text-muted-foreground hover:text-foreground hover:bg-card/50"
@@ -508,6 +556,36 @@ export default function MyPage() {
                   <p className="text-xs text-muted-foreground mt-1">
                     관심 있는 게시글의 북마크 아이콘을 눌러보세요!
                   </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "likes" && (
+            <div className="space-y-4">
+              {likedPostsLoading ? (
+                [...Array(3)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-28 bg-muted/50 rounded-2xl animate-pulse"
+                  />
+                ))
+              ) : myLikedPosts && myLikedPosts.length > 0 ? (
+                myLikedPosts.map(p => renderPostCard(p, true))
+              ) : (
+                <div className="text-center py-20 bg-muted/10 rounded-3xl border border-dashed border-border">
+                  <Heart className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                  <p className="font-bold text-muted-foreground">
+                    좋아요한 글이 없습니다
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    관심 있는 모집 글의 하트를 눌러보세요!
+                  </p>
+                  <Link href="/board">
+                    <Button className="mt-4 rounded-xl font-bold" size="sm">
+                      모집 보러가기
+                    </Button>
+                  </Link>
                 </div>
               )}
             </div>

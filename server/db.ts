@@ -1448,6 +1448,37 @@ export async function getBookmarkedPosts(userId: number) {
   }
 }
 
+// * 사용자가 좋아요한 게시글 목록을 조회하는 함수
+export async function getLikedPosts(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    const result = await db
+      .select({
+        post: posts,
+        authorName: sql<string | null>`coalesce(${users.realName}, ${users.name})`,
+        authorAvatarUrl: users.avatarUrl,
+        likeCount: sql<number>`(SELECT count(*)::int FROM likes WHERE likes."postId" = posts.id)`,
+        commentCount: sql<number>`(SELECT count(*)::int FROM comments WHERE comments."postId" = posts.id)`,
+      })
+      .from(likes)
+      .innerJoin(posts, eq(likes.postId, posts.id))
+      .leftJoin(users, eq(posts.authorId, users.id))
+      .where(eq(likes.userId, userId))
+      .orderBy(desc(likes.createdAt));
+
+    return result.map(r => ({
+      ...r,
+      likeCount: Number(r.likeCount || 0),
+      commentCount: Number(r.commentCount || 0),
+    }));
+  } catch (error) {
+    console.warn("[Database] getLikedPosts 쿼리 실패:", error);
+    return [];
+  }
+}
+
 // ─── 모집 신청(Applications) 관련 함수 ──────────────────────────────────────────
 
 // * 특정 유저가 해당 게시글에 이미 신청했는지 확인하는 함수
